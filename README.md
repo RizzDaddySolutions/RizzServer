@@ -7,6 +7,7 @@ An OPC UA server with a Fluent WPF front end that gathers data from other protoc
 | Modbus TCP | NModbus | `HR100`, `IR100`, `C5`, `DI5` (zero-based; 32/64-bit types span registers, optional word swap) |
 | Modbus RTU (RS-232/485) | NModbus + System.IO.Ports | same as above |
 | RS-232 text | System.IO.Ports | field index `0`, `line`, or `re:pattern` |
+| RS-232 command/response | System.IO.Ports | `command\|parse\|writeTemplate` e.g. `READ?\|0`, `W\|re:([-\d.]+)`, `SP?\|\|SP {0}` |
 | MQTT | MQTTnet | `topic` or `topic\|json.path` (wildcards `+`/`#` allowed for reads) |
 | OPC DA (classic) | OPC Automation (late-bound COM) | OPC item ID |
 

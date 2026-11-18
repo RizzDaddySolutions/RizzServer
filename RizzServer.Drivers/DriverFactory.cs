@@ -17,6 +17,7 @@ public sealed class DriverFactory : IDriverFactory
             DriverType.ModbusTcp => new ModbusDriver(config, log, rtu: false),
             DriverType.ModbusRtu => new ModbusDriver(config, log, rtu: true),
             DriverType.Serial => new SerialDriver(config, log),
+            DriverType.Rs232Poll => new Rs232PollDriver(config, log),
             DriverType.Mqtt => new MqttDriver(config, log),
             DriverType.OpcDa => new OpcDaDriver(config, log),
             _ => throw new NotSupportedException(config.DriverType.ToString()),
