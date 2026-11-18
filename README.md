@@ -30,6 +30,15 @@ dotnet run --project RizzServer.App
 
 Configuration is stored in `%AppData%\RizzServer\config.json` (including any MQTT password, in plain text). Certificates live in `%AppData%\RizzServer\pki`. Default endpoint: `opc.tcp://<host>:4840/RizzServer`.
 
+## Installer
+
+```powershell
+./installer/build.ps1                 # version from Directory.Build.props
+./installer/build.ps1 -Version 1.2.0
+```
+
+Produces `artifacts/installer/RizzServer-<version>-x64.msi` (WiX 5, self-contained .NET 10 – no runtime needed on the target PC). It installs per machine to `Program Files\RizzServer`, adds a Start menu shortcut and upgrades in place when you install a newer version. Uninstall keeps your settings in `%AppData%\RizzServer`. Windows Firewall may ask to allow the OPC UA port the first time the server starts.
+
 ## Notes
 
 - Add connections and tags, press **Start**. Configuration is locked while the server runs.

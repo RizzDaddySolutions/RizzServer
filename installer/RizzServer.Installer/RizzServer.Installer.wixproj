@@ -1,0 +1,11 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputName>RizzServer-$(Version)-x64</OutputName>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <SuppressValidation>false</SuppressValidation>
+    <!-- Folder produced by `dotnet publish`; build.ps1 passes the real one. -->
+    <PublishDir Condition="'$(PublishDir)' == ''">$(MSBuildThisFileDirectory)..\..\artifacts\publish\</PublishDir>
+    <DefineConstants>$(DefineConstants);PublishDir=$([System.IO.Path]::GetFullPath('$(PublishDir)'));ProductVersion=$(Version)</DefineConstants>
+  </PropertyGroup>
+</Project>

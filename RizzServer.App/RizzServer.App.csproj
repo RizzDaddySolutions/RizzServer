@@ -18,6 +18,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyName>RizzServer</AssemblyName>
+    <RootNamespace>RizzServer.App</RootNamespace>
+    <Description>OPC UA gateway for Modbus, RS-232, MQTT, OPC DA and OPC UA sources</Description>
   </PropertyGroup>
 
 </Project>
