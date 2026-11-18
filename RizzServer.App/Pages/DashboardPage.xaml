@@ -1,0 +1,56 @@
+<Page x:Class="RizzServer.App.Pages.DashboardPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Dashboard">
+    <Grid Margin="24,8,24,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TextBlock Grid.Row="0" Text="Dashboard" FontTypography="Title" Margin="0,0,0,16" />
+
+        <Border Grid.Row="1" Padding="20" CornerRadius="8" Margin="0,0,0,16"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <ui:TextBlock Text="OPC UA Server" FontTypography="Subtitle" />
+                    <ui:TextBlock Text="{Binding App.Status}" Margin="0,4,0,0" />
+                    <ui:TextBlock Text="{Binding App.EndpointUrl}" Margin="0,4,0,0"
+                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <ui:TextBlock Margin="0,4,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                        <Run Text="Tags served: " /><Run Text="{Binding App.RunningTags.Count, Mode=OneWay}" />
+                    </ui:TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ui:Button Content="Start" Appearance="Primary" Icon="{ui:SymbolIcon Play24}"
+                               Command="{Binding App.StartCommand}" Margin="0,0,8,0" />
+                    <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Command="{Binding App.StopCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <ui:TextBlock Text="Connections" FontTypography="Subtitle" Margin="0,0,0,8" />
+            <DataGrid Grid.Row="1" ItemsSource="{Binding App.RunningConnections}" AutoGenerateColumns="False"
+                      IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200" />
+                    <DataGridTextColumn Header="Driver" Binding="{Binding Config.DriverType}" Width="140" />
+                    <DataGridTextColumn Header="State" Binding="{Binding State}" Width="120" />
+                    <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Grid>
+</Page>

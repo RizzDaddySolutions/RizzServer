@@ -1,0 +1,28 @@
+<Page x:Class="RizzServer.App.Pages.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Server Settings">
+    <StackPanel Margin="24,8,24,24" MaxWidth="560" HorizontalAlignment="Left"
+                IsEnabled="{Binding App.IsEditable}">
+        <ui:TextBlock Text="Server Settings" FontTypography="Title" Margin="0,0,0,16" />
+
+        <ui:TextBlock Text="Application name" Margin="0,0,0,4" />
+        <ui:TextBox Text="{Binding Server.ApplicationName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+
+        <ui:TextBlock Text="TCP port" Margin="0,0,0,4" />
+        <ui:TextBox Text="{Binding Server.Port, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+
+        <ui:TextBlock Text="Namespace URI" Margin="0,0,0,4" />
+        <ui:TextBox Text="{Binding Server.NamespaceUri, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+
+        <CheckBox Content="Allow unsecured connections (SecurityPolicy None)"
+                  IsChecked="{Binding Server.AllowNoSecurity}" Margin="0,0,0,4" />
+        <CheckBox Content="Auto-accept untrusted client certificates"
+                  IsChecked="{Binding Server.AutoAcceptCertificates}" Margin="0,0,0,16" />
+
+        <ui:Button Content="Save" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" />
+        <ui:TextBlock Margin="0,16,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                      Text="Changes apply the next time the server is started. Anonymous access only; disable the options above for production use." />
+    </StackPanel>
+</Page>

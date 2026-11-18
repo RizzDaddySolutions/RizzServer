@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="RizzServer.App/RizzServer.App.csproj" />
+  <Project Path="RizzServer.Core/RizzServer.Core.csproj" />
+  <Project Path="RizzServer.Drivers/RizzServer.Drivers.csproj" />
+  <Project Path="RizzServer.Server/RizzServer.Server.csproj" />
+</Solution>
