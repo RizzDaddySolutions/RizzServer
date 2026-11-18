@@ -75,7 +75,7 @@ public static class DriverCatalog
                 new("InterCommandDelayMs", "Delay between commands (ms)", "50"),
             ]),
         new(DriverType.BinaryFrame, "RS-232 binary frames",
-            "offset:type[:scale] — types u8 i8 u16 i16 u32 i32 u64 i64 f32 f64 (+le/be), bit0..bit7, ascii8. E.g. 4:i16:0.1 or 6:f32le.",
+            "offset:type[:scale] — types u8 i8 u16 i16 u32 i32 u64 i64 f32 f64 (+le/be), bit0..bit7, ascii8. E.g. 4:i16:0.1 or 6:f32le. To write add |template with {v} (value) and {ck} (checksum): 4:i16:0.1|AA55 05 {v} {ck}.",
             [
                 new("PortName", "COM port", "COM1"),
                 new("BaudRate", "Baud rate", "9600"),

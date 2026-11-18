@@ -7,7 +7,8 @@ namespace RizzServer.Drivers;
 /// <summary>
 /// RS-232 binary protocol: frames are synchronised on a header, optionally validated by a checksum,
 /// and each tag decodes a field at a byte offset (address <c>offset:type[:scale]</c>, e.g. <c>4:i16:0.1</c>).
-/// An optional request is sent every poll for devices that must be triggered.
+/// An optional request is sent every poll for devices that must be triggered. Tags with a write template
+/// (<c>offset:type[:scale]|AA55 05 {v} {ck}</c>) can be written.
 /// </summary>
 public sealed class BinaryFrameDriver : DriverBase
 {
@@ -18,6 +19,9 @@ public sealed class BinaryFrameDriver : DriverBase
     private bool _bigEndian = true;
     private byte[] _request = [];
     private int _badFrames;
+    private ChecksumKind _checksum;
+    private int _checksumStart;
+    private readonly object _txLock = new();
 
     public BinaryFrameDriver(ConnectionConfig config, ILogger log) : base(config, log) { }
 
@@ -29,13 +33,16 @@ public sealed class BinaryFrameDriver : DriverBase
         _specs = new Dictionary<TagConfig, BinaryFieldSpec>();
         foreach (var tag in Tags)
         {
-            try { _specs[tag] = BinaryFieldSpec.Parse(tag.Address); }
+            try { _specs[tag] = BinaryFieldSpec.Parse(BinaryFieldSpec.SplitAddress(tag.Address).Field); }
             catch (FormatException ex)
             {
                 Log.LogWarning("[{Conn}] {Tag}: {Error}", Config.Name, tag.Name, ex.Message);
                 Publish(tag, null, TagQuality.Bad);
             }
         }
+
+        _checksum = Enum.TryParse<ChecksumKind>(Config.Setting("Checksum", "None"), true, out var kind) ? kind : ChecksumKind.None;
+        _checksumStart = Config.SettingInt("ChecksumStart", 0);
 
         _assembler = new FrameAssembler
         {
@@ -45,8 +52,8 @@ public sealed class BinaryFrameDriver : DriverBase
             LengthSize = Config.SettingInt("LengthSize", 1) == 2 ? 2 : 1,
             LengthBigEndian = _bigEndian,
             LengthAdjust = Config.SettingInt("LengthAdjust", 0),
-            Checksum = Enum.TryParse<ChecksumKind>(Config.Setting("Checksum", "None"), true, out var ck) ? ck : ChecksumKind.None,
-            ChecksumStart = Config.SettingInt("ChecksumStart", 0),
+            Checksum = _checksum,
+            ChecksumStart = _checksumStart,
         };
 
         _port = new SerialPort(Config.Setting("PortName", "COM1"), Config.SettingInt("BaudRate", 9600),
@@ -69,7 +76,7 @@ public sealed class BinaryFrameDriver : DriverBase
     {
         var port = _port;
         if (port is not { IsOpen: true }) throw new IOException("Serial port closed.");
-        if (_request.Length > 0) port.Write(_request, 0, _request.Length);
+        if (_request.Length > 0) Send(port, _request);
         return Task.CompletedTask;
     }
 
@@ -109,6 +116,22 @@ public sealed class BinaryFrameDriver : DriverBase
         }
     }
 
-    public override Task WriteAsync(TagConfig tag, object value, CancellationToken ct = default) =>
-        throw new NotSupportedException("The binary frame driver is read-only.");
+    private void Send(SerialPort port, byte[] bytes)
+    {
+        lock (_txLock) port.Write(bytes, 0, bytes.Length);
+    }
+
+    public override Task WriteAsync(TagConfig tag, object value, CancellationToken ct = default)
+    {
+        var port = _port is { IsOpen: true } p ? p : throw new InvalidOperationException("Not connected.");
+        var (_, template) = BinaryFieldSpec.SplitAddress(tag.Address);
+        if (string.IsNullOrEmpty(template))
+            throw new InvalidOperationException("Tag has no write template (address: offset:type[:scale]|AA55 05 {v} {ck}).");
+        if (!_specs.TryGetValue(tag, out var spec))
+            throw new InvalidOperationException("Tag address is invalid.");
+
+        var frame = WriteTemplate.Build(template, spec.Encode(value, _bigEndian), _checksum, _checksumStart);
+        Send(port, frame);
+        return Task.CompletedTask;
+    }
 }

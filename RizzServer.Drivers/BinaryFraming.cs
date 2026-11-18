@@ -125,17 +125,26 @@ public sealed class FrameAssembler
         if (Checksum == ChecksumKind.None) return true;
         var end = f.Length - ChecksumLength;
         if (ChecksumStart > end) return false;
-        var span = f.AsSpan(ChecksumStart, end - ChecksumStart);
-        switch (Checksum)
+        var expected = ComputeChecksum(Checksum, f.AsSpan(ChecksumStart, end - ChecksumStart));
+        return f.AsSpan(end).SequenceEqual(expected);
+    }
+
+    /// <summary>Checksum bytes as they appear on the wire (CRC16 is little-endian).</summary>
+    public static byte[] ComputeChecksum(ChecksumKind kind, ReadOnlySpan<byte> data)
+    {
+        switch (kind)
         {
             case ChecksumKind.Sum8:
-                byte sum = 0; foreach (var b in span) sum += b;
-                return sum == f[^1];
+                byte sum = 0; foreach (var b in data) sum += b;
+                return [sum];
             case ChecksumKind.Xor8:
-                byte x = 0; foreach (var b in span) x ^= b;
-                return x == f[^1];
+                byte x = 0; foreach (var b in data) x ^= b;
+                return [x];
+            case ChecksumKind.Crc16Modbus:
+                var crc = Crc16Modbus(data);
+                return [(byte)(crc & 0xFF), (byte)(crc >> 8)];
             default:
-                return Crc16Modbus(span) == (ushort)(f[^2] | (f[^1] << 8));
+                return [];
         }
     }
 
@@ -221,5 +230,89 @@ public sealed record BinaryFieldSpec(int Offset, string Type, bool? BigEndian, d
 
         if (Scale == 1.0 || value is bool or string) return value;
         return Convert.ToDouble(value, CultureInfo.InvariantCulture) * Scale;
+    }
+
+    /// <summary>Splits "offset:type[:scale]|writeTemplate" into its two parts (template may be null).</summary>
+    public static (string Field, string? Template) SplitAddress(string address)
+    {
+        var i = address.IndexOf('|');
+        return i < 0 ? (address.Trim(), null) : (address[..i].Trim(), address[(i + 1)..].Trim());
+    }
+
+    /// <summary>Encodes a value as this field's bytes (inverse of <see cref="Decode"/>, scale undone).</summary>
+    public byte[] Encode(object value, bool defaultBigEndian)
+    {
+        var big = BigEndian ?? defaultBigEndian;
+        var b = new byte[Size];
+
+        if (Type.StartsWith("ascii"))
+        {
+            var text = Convert.ToString(value, CultureInfo.InvariantCulture) ?? "";
+            var bytes = Encoding.Latin1.GetBytes(text);
+            if (bytes.Length > Size) throw new ArgumentException($"Text longer than {Size} bytes.");
+            bytes.CopyTo(b, 0);
+            return b;
+        }
+        if (Type.StartsWith("bit"))
+        {
+            b[0] = Convert.ToBoolean(value, CultureInfo.InvariantCulture) ? (byte)1 : (byte)0;
+            return b;
+        }
+
+        var d = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+        if (Scale != 1.0) d /= Scale;
+        var span = b.AsSpan();
+        try
+        {
+            switch (Type)
+            {
+                case "u8": b[0] = checked((byte)Math.Round(d)); break;
+                case "i8": b[0] = (byte)checked((sbyte)Math.Round(d)); break;
+                case "u16": if (big) BinaryPrimitives.WriteUInt16BigEndian(span, checked((ushort)Math.Round(d))); else BinaryPrimitives.WriteUInt16LittleEndian(span, checked((ushort)Math.Round(d))); break;
+                case "i16": if (big) BinaryPrimitives.WriteInt16BigEndian(span, checked((short)Math.Round(d))); else BinaryPrimitives.WriteInt16LittleEndian(span, checked((short)Math.Round(d))); break;
+                case "u32": if (big) BinaryPrimitives.WriteUInt32BigEndian(span, checked((uint)Math.Round(d))); else BinaryPrimitives.WriteUInt32LittleEndian(span, checked((uint)Math.Round(d))); break;
+                case "i32": if (big) BinaryPrimitives.WriteInt32BigEndian(span, checked((int)Math.Round(d))); else BinaryPrimitives.WriteInt32LittleEndian(span, checked((int)Math.Round(d))); break;
+                case "u64": if (big) BinaryPrimitives.WriteUInt64BigEndian(span, checked((ulong)Math.Round(d))); else BinaryPrimitives.WriteUInt64LittleEndian(span, checked((ulong)Math.Round(d))); break;
+                case "i64": if (big) BinaryPrimitives.WriteInt64BigEndian(span, checked((long)Math.Round(d))); else BinaryPrimitives.WriteInt64LittleEndian(span, checked((long)Math.Round(d))); break;
+                case "f32": if (big) BinaryPrimitives.WriteSingleBigEndian(span, (float)d); else BinaryPrimitives.WriteSingleLittleEndian(span, (float)d); break;
+                case "f64": if (big) BinaryPrimitives.WriteDoubleBigEndian(span, d); else BinaryPrimitives.WriteDoubleLittleEndian(span, d); break;
+            }
+        }
+        catch (OverflowException)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), $"{value} does not fit {Type} (after scale {Scale}).");
+        }
+        return b;
+    }
+}
+
+/// <summary>
+/// Write frame: hex bytes with {v} (the encoded value) and {ck} (checksum over the bytes built so far,
+/// starting at the connection's checksum start). Example: "AA55 05 {v} {ck}".
+/// </summary>
+public static class WriteTemplate
+{
+    private static readonly Regex Tokens = new(@"(\{v\}|\{ck\})", RegexOptions.IgnoreCase);
+
+    public static byte[] Build(string template, byte[] valueBytes, ChecksumKind checksum, int checksumStart)
+    {
+        var frame = new List<byte>();
+        var hasValue = false;
+        foreach (var part in Tokens.Split(template))
+        {
+            if (part.Equals("{v}", StringComparison.OrdinalIgnoreCase)) { frame.AddRange(valueBytes); hasValue = true; }
+            else if (part.Equals("{ck}", StringComparison.OrdinalIgnoreCase))
+            {
+                if (checksum == ChecksumKind.None)
+                    throw new InvalidOperationException("Template uses {ck} but the connection's checksum is None.");
+                if (checksumStart > frame.Count)
+                    throw new InvalidOperationException("Checksum start is beyond the bytes before {ck}.");
+                var data = frame.GetRange(checksumStart, frame.Count - checksumStart).ToArray();
+                frame.AddRange(FrameAssembler.ComputeChecksum(checksum, data));
+            }
+            else frame.AddRange(FrameAssembler.ParseHex(part));
+        }
+        if (!hasValue) throw new FormatException("Write template needs a {v} placeholder.");
+        return frame.ToArray();
     }
 }
