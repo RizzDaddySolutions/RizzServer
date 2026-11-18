@@ -48,6 +48,17 @@ public partial class ServerSettings : ObservableObject
     [ObservableProperty] private bool _allowNoSecurity = true;
     [ObservableProperty] private bool _autoAcceptCertificates = true;
     [ObservableProperty] private string _namespaceUri = "urn:rizzserver:data";
+    [ObservableProperty] private bool _allowAnonymous = true;
+
+    /// <summary>Accounts allowed to log in with user name + password.</summary>
+    public ObservableCollection<UserAccount> Users { get; set; } = new();
+}
+
+public class UserAccount
+{
+    public string Username { get; set; } = "";
+    /// <summary>PBKDF2 hash, "iterations.salt.hash" (base64). Never the plain password.</summary>
+    public string PasswordHash { get; set; } = "";
 }
 
 public class GatewayConfig

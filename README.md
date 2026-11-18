@@ -31,4 +31,4 @@ Configuration is stored in `%AppData%\RizzServer\config.json` (including any MQT
 
 - Add connections and tags, press **Start**. Configuration is locked while the server runs.
 - OPC DA needs the OPC Core Components. The Automation wrapper is normally 32-bit, so build the app for x86 to use it.
-- Security: anonymous access only; unsecured and auto-accept-certificate options are on by default for ease of setup. Turn them off in Server Settings for production.
+- Security: optional user name/password login (salted PBKDF2 hashes; manage users in Server Settings) and anonymous access can be switched off. Unsecured connections and auto-accept-certificates are on by default for easy setup; turn them off for production, otherwise passwords travel unencrypted.

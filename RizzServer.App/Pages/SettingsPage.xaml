@@ -3,6 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="Server Settings">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="24,8,24,24" MaxWidth="560" HorizontalAlignment="Left"
                 IsEnabled="{Binding App.IsEditable}">
         <ui:TextBlock Text="Server Settings" FontTypography="Title" Margin="0,0,0,16" />
@@ -19,10 +20,36 @@
         <CheckBox Content="Allow unsecured connections (SecurityPolicy None)"
                   IsChecked="{Binding Server.AllowNoSecurity}" Margin="0,0,0,4" />
         <CheckBox Content="Auto-accept untrusted client certificates"
-                  IsChecked="{Binding Server.AutoAcceptCertificates}" Margin="0,0,0,16" />
+                  IsChecked="{Binding Server.AutoAcceptCertificates}" Margin="0,0,0,4" />
+        <CheckBox Content="Allow anonymous access" IsChecked="{Binding Server.AllowAnonymous}" Margin="0,0,0,16" />
 
         <ui:Button Content="Save" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" />
+
+        <ui:TextBlock Text="Users" FontTypography="Subtitle" Margin="0,28,0,4" />
+        <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                      Text="Clients can log in with user name and password. Passwords are stored as salted hashes. Use a secured endpoint (disable 'Allow unsecured connections'), otherwise the password travels unencrypted. Adding an existing name changes its password." />
+        <DataGrid ItemsSource="{Binding Server.Users}" SelectedItem="{Binding SelectedUser}" AutoGenerateColumns="False"
+                  IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None" Height="140" Margin="0,0,0,8">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="User name" Binding="{Binding Username}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+        <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ui:TextBox x:Name="NewUser" PlaceholderText="User name" />
+            <ui:PasswordBox x:Name="NewPassword" Grid.Column="2" PlaceholderText="Password (8+ chars)" />
+            <ui:Button Grid.Column="4" Content="Add / update" Icon="{ui:SymbolIcon PersonAdd24}" Click="OnAddUser" />
+        </Grid>
+        <ui:Button Content="Remove selected user" Icon="{ui:SymbolIcon Delete24}" Command="{Binding RemoveUserCommand}" />
+        <ui:TextBlock Text="{Binding UserMessage}" Margin="0,8,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
         <ui:TextBlock Margin="0,16,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                      Text="Changes apply the next time the server is started. Anonymous access only; disable the options above for production use." />
+                      Text="Changes apply the next time the server is started. For production, disable unsecured connections and auto-accepting certificates." />
     </StackPanel>
+    </ScrollViewer>
 </Page>

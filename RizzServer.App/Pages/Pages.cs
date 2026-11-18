@@ -46,6 +46,15 @@ public partial class SettingsPage : Page
         DataContext = new SettingsViewModel();
         InitializeComponent();
     }
+
+    private void OnAddUser(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (((SettingsViewModel)DataContext).AddUser(NewUser.Text, NewPassword.Password))
+        {
+            NewUser.Clear();
+            NewPassword.Clear();
+        }
+    }
 }
 
 public sealed class DashboardViewModel

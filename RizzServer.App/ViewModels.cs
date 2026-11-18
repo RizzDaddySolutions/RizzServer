@@ -150,6 +150,49 @@ public sealed partial class SettingsViewModel : ObservableObject
     public AppState App => AppState.Instance;
     public ServerSettings Server => App.Config.Server;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveUserCommand))]
+    private UserAccount? _selectedUser;
+
+    [ObservableProperty] private string _userMessage = "";
+
     [RelayCommand]
     private void Save() => App.Save();
+
+    /// <summary>Adds a user, or replaces the password if the name already exists.</summary>
+    public bool AddUser(string username, string password)
+    {
+        username = username.Trim();
+        if (username.Length == 0 || password.Length < 8)
+        {
+            UserMessage = "Enter a user name and a password of at least 8 characters.";
+            return false;
+        }
+
+        var hash = PasswordHasher.Hash(password);
+        var existing = Server.Users.FirstOrDefault(u => u.Username == username);
+        if (existing is not null)
+        {
+            existing.PasswordHash = hash;
+            UserMessage = $"Password updated for {username}.";
+        }
+        else
+        {
+            Server.Users.Add(new UserAccount { Username = username, PasswordHash = hash });
+            UserMessage = $"User {username} added.";
+        }
+        App.Save();
+        return true;
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelectedUser))]
+    private void RemoveUser()
+    {
+        if (SelectedUser is null) return;
+        UserMessage = $"User {SelectedUser.Username} removed.";
+        Server.Users.Remove(SelectedUser);
+        App.Save();
+    }
+
+    private bool HasSelectedUser() => SelectedUser is not null;
 }
