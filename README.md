@@ -11,6 +11,7 @@ An OPC UA server with a Fluent WPF front end that gathers data from other protoc
 | RS-232 binary frames | System.IO.Ports | `offset:type[:scale]` e.g. `4:i16:0.1`, `6:f32le`, `3:bit2` (header sync, fixed/length-field frames, Sum8/Xor8/CRC16 check; writes via a template: ``4:i16:0.1\|AA55 05 {v} {ck}``) |
 | MQTT | MQTTnet | `topic` or `topic\|json.path` (wildcards `+`/`#` allowed for reads) |
 | OPC DA (classic) | OPC Automation (late-bound COM) | OPC item ID |
+| OPC UA client | OPC Foundation stack | NodeId string, e.g. `ns=2;s=Pressure`, `i=2258` (subscription; anonymous or user/password; read/write) |
 
 ## Layout
 

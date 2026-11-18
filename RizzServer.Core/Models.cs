@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace RizzServer.Core;
 
-public enum DriverType { ModbusTcp, ModbusRtu, Serial, Mqtt, OpcDa, Rs232Poll, BinaryFrame }
+public enum DriverType { ModbusTcp, ModbusRtu, Serial, Mqtt, OpcDa, Rs232Poll, BinaryFrame, OpcUa }
 
 public enum TagDataType { Boolean, Int16, UInt16, Int32, UInt32, Int64, UInt64, Float, Double, String }
 

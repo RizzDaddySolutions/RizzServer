@@ -92,6 +92,15 @@ public static class DriverCatalog
                 new("ChecksumStart", "Checksum starts at byte", "0"),
                 new("Request", "Poll request (hex, optional)", ""),
             ]),
+        new(DriverType.OpcUa, "OPC UA client",
+            "NodeId in string form, e.g. ns=2;s=Pressure or i=2258. Values arrive by subscription at the poll interval.",
+            [
+                new("EndpointUrl", "Endpoint URL", "opc.tcp://localhost:4840"),
+                new("Security", "Security", "None", ["None", "Secure"]),
+                new("Username", "Username (blank = anonymous)", ""),
+                new("Password", "Password", "", Secret: true),
+                new("AutoAcceptCertificates", "Auto-accept server certificate", "True", Bools),
+            ]),
         new(DriverType.Mqtt, "MQTT",
             "Topic, optionally followed by |json.path (e.g. plant/line1|sensor.temp). Wildcards + and # supported.",
             [
