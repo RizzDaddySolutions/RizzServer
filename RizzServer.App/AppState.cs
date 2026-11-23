@@ -66,6 +66,9 @@ public sealed partial class AppState : ObservableObject
         RuntimeSynced?.Invoke();
     }
 
+    public void LogInfo(string message) => _log.LogInformation("{Message}", message);
+    public void LogWarning(string message) => _log.LogWarning("{Message}", message);
+
     public void Save()
     {
         try { ConfigStore.Save(Config); _log.LogInformation("Project saved to {Path}", ConfigStore.ConfigPath); }

@@ -60,6 +60,7 @@ Writes self-contained archives to `artifacts/portable/` (`.zip` for Windows, `.t
 ## Notes
 
 - **Edit ▸ New Channel…** opens the wizard: channel name → driver → communication settings (detected serial ports are listed) → first device (name, device settings, scan rate) → summary. **New Device…** runs the device half of it for an existing channel. Tags are added in the device's tag grid.
+- **Import CSV… / Export CSV…** (File menu or the tag grid) bring tags in and out in KEPServerEX's column layout: `Tag Name, Address, Data Type, Client Access`. Kepware type names (Short, Word, Long, DWord, LLong, QWord, Float, Double, Boolean, String) and `Read Only` / `Read/Write` are understood, comma, semicolon or tab delimiters are detected, and extra columns are ignored. Existing tags with the same name are updated; bad rows are skipped and listed. Addresses are driver-specific, so Kepware addresses will need editing for the RizzServer driver.
 - Add channels and tags in the project tree, then press **Start Runtime**. Configuration is locked while the runtime is running.
 - OPC DA is Windows-only and needs the OPC Core Components. The Automation wrapper is normally 32-bit, so build the app for x86 to use it. On Linux/macOS that driver reports "not supported"; everything else works.
 - Serial drivers use the OS port names (`COM3`, `/dev/ttyUSB0`, `/dev/tty.usbserial-…`). On Linux the user needs access to the device (usually the `dialout` group).

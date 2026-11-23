@@ -348,6 +348,59 @@ public sealed partial class DeviceNode : NavNode
     }
 
     private bool HasSelectedTag() => SelectedTag is not null;
+
+    /// <summary>Adds tags from a CSV file; tags with an existing name are updated in place.</summary>
+    [RelayCommand]
+    private async Task ImportTagsAsync()
+    {
+        if (FileService.PickOpen is null || FileService.Message is null) return;
+        var path = await FileService.PickOpen("Import tags from CSV");
+        if (path is null) return;
+
+        string text;
+        try { text = await File.ReadAllTextAsync(path); }
+        catch (Exception ex)
+        {
+            await FileService.Message("Import tags", $"Could not read the file:\n{ex.Message}");
+            return;
+        }
+
+        var result = TagCsv.Parse(text);
+        var (added, updated) = TagCsv.ApplyTo(Config, result.Tags);
+
+        var summary = $"{added} tag(s) added, {updated} updated";
+        if (result.Errors.Count > 0) summary += $", {result.Errors.Count} row(s) skipped";
+        summary += $" — {Path.GetFileName(path)}";
+        App.LogInfo($"[{ChannelName}.{Config.Name}] {summary}");
+        foreach (var e in result.Errors) App.LogWarning($"[{ChannelName}.{Config.Name}] CSV import: {e}");
+
+        var message = summary + ".";
+        if (result.Errors.Count > 0)
+        {
+            message += "\n\n" + string.Join("\n", result.Errors.Take(8));
+            if (result.Errors.Count > 8) message += $"\n… and {result.Errors.Count - 8} more (see the event log).";
+        }
+        await FileService.Message("Import tags", message);
+    }
+
+    [RelayCommand]
+    private async Task ExportTagsAsync()
+    {
+        if (FileService.PickSave is null || FileService.Message is null) return;
+        var path = await FileService.PickSave("Export tags to CSV", $"{ChannelName}.{Config.Name}-tags.csv");
+        if (path is null) return;
+
+        try
+        {
+            // UTF-8 with BOM so Excel opens non-ASCII names correctly.
+            await File.WriteAllTextAsync(path, TagCsv.Format(Config.Tags), new System.Text.UTF8Encoding(true));
+            App.LogInfo($"[{ChannelName}.{Config.Name}] Exported {Config.Tags.Count} tag(s) to {path}");
+        }
+        catch (Exception ex)
+        {
+            await FileService.Message("Export tags", $"Could not write the file:\n{ex.Message}");
+        }
+    }
 }
 
 public sealed partial class ServerNode : NavNode

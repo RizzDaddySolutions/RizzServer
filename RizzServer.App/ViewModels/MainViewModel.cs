@@ -59,6 +59,8 @@ public sealed partial class MainViewModel : ObservableObject
         AddDeviceCommand.NotifyCanExecuteChanged();
         AddTagCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
+        ImportTagsCommand.NotifyCanExecuteChanged();
+        ExportTagsCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>The channel the selection belongs to (the channel itself or one of its devices).</summary>
@@ -127,6 +129,20 @@ public sealed partial class MainViewModel : ObservableObject
                 break;
         }
     }
+
+    [RelayCommand(CanExecute = nameof(CanAddTag))]
+    private async Task ImportTagsAsync()
+    {
+        if (CurrentDevice is { } device) await device.ImportTagsCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand(CanExecute = nameof(HasDevice))]
+    private async Task ExportTagsAsync()
+    {
+        if (CurrentDevice is { } device) await device.ExportTagsCommand.ExecuteAsync(null);
+    }
+
+    private bool HasDevice() => CurrentDevice is not null;
 
     private bool IsEditable() => App.IsEditable;
     private bool CanAddDevice() => App.IsEditable && CurrentChannel is { CanAddDevice: true };

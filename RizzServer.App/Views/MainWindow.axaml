@@ -25,6 +25,9 @@
       <MenuItem Header="_File">
         <MenuItem Header="_Save Project" InputGesture="Ctrl+S" Command="{Binding SaveCommand}" />
         <Separator />
+        <MenuItem Header="_Import Tags from CSV…" Command="{Binding ImportTagsCommand}" />
+        <MenuItem Header="E_xport Tags to CSV…" Command="{Binding ExportTagsCommand}" />
+        <Separator />
         <MenuItem Header="E_xit" Command="{Binding ExitAppCommand}" />
       </MenuItem>
       <MenuItem Header="_Edit">

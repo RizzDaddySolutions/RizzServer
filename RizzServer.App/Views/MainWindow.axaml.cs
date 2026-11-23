@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using RizzServer.App.ViewModels;
 
@@ -33,6 +34,30 @@ public partial class MainWindow : Window
         vm.ShowAbout = () => Dialogs.MessageAsync(this, "About RizzServer",
             "RizzServer — OPC UA gateway\nModbus · RS-232 · MQTT · OPC DA · OPC UA");
         vm.ShowWizard = wizard => WizardWindow.RunAsync(this, wizard);
+
+        var csv = new FilePickerFileType("CSV files") { Patterns = ["*.csv"] };
+        FileService.Message = (title, text) => Dialogs.MessageAsync(this, title, text);
+        FileService.PickOpen = async title =>
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+                FileTypeFilter = [csv, FilePickerFileTypes.All],
+            });
+            return files.FirstOrDefault()?.TryGetLocalPath();
+        };
+        FileService.PickSave = async (title, suggested) =>
+        {
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title,
+                SuggestedFileName = suggested,
+                DefaultExtension = "csv",
+                FileTypeChoices = [csv],
+            });
+            return file?.TryGetLocalPath();
+        };
         vm.Exit = Close;
     }
 }
