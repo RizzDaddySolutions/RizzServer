@@ -9,10 +9,17 @@ namespace RizzServer.App.Views;
 
 public partial class MainWindow : Window
 {
+    private double _logHeight;
+
     public MainWindow()
     {
         InitializeComponent();
+        WindowPlacementService.Attach(this, "Main");
+        ApplyPanes();
         DataContextChanged += (_, _) => Wire();
+        Closing += (_, _) => SavePanes();
+        LogSplitter.DragCompleted += (_, _) => SavePanes();
+        TreeSplitter.DragCompleted += (_, _) => SavePanes();
 
         // Keep the newest event visible.
         AppState.Instance.Logs.Entries.CollectionChanged += (_, e) =>
@@ -27,12 +34,47 @@ public partial class MainWindow : Window
         };
     }
 
+    /// <summary>Restores the tree width and event-log height from the last run.</summary>
+    private void ApplyPanes()
+    {
+        var s = UiSettings.Instance;
+        TopArea.ColumnDefinitions[0].Width = new GridLength(Math.Max(120, s.TreeWidth));
+        MainArea.RowDefinitions[0].MinHeight = 120;
+        MainArea.RowDefinitions[2].MinHeight = 60;
+        _logHeight = Math.Max(60, s.LogHeight);
+        ApplyLogVisibility(s.LogVisible);
+    }
+
+    private void ApplyLogVisibility(bool visible)
+    {
+        var rows = MainArea.RowDefinitions;
+        if (!visible && rows[2].ActualHeight > 0) _logHeight = rows[2].ActualHeight;
+        rows[1].Height = new GridLength(visible ? 4 : 0);
+        rows[2].MinHeight = visible ? 60 : 0; // a MinHeight would keep the hidden row open
+        rows[2].Height = new GridLength(visible ? _logHeight : 0);
+        LogSplitter.IsVisible = visible;
+        LogPanel.IsVisible = visible;
+    }
+
+    private void SavePanes()
+    {
+        var s = UiSettings.Instance;
+        var tree = TopArea.ColumnDefinitions[0].ActualWidth;
+        if (tree > 0) s.TreeWidth = tree;
+        var log = MainArea.RowDefinitions[2].ActualHeight;
+        if (LogPanel.IsVisible && log > 0) { s.LogHeight = log; _logHeight = log; }
+        s.Save();
+    }
+
     private void Wire()
     {
         if (DataContext is not MainViewModel vm) return;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.LogVisible)) ApplyLogVisibility(vm.LogVisible);
+        };
         vm.Confirm = text => Dialogs.ConfirmAsync(this, text);
-        vm.ShowAbout = () => Dialogs.MessageAsync(this, "About RizzServer",
-            "RizzServer — OPC UA gateway\nModbus · RS-232 · MQTT · OPC DA · OPC UA");
+        vm.ShowAbout = () => new AboutWindow().ShowDialog(this);
         vm.ShowWizard = wizard => WizardWindow.RunAsync(this, wizard);
 
         var csv = new FilePickerFileType("CSV files") { Patterns = ["*.csv"] };

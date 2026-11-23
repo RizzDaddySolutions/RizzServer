@@ -5,7 +5,12 @@ namespace RizzServer.App.Views;
 
 public partial class WizardWindow : Window
 {
-    public WizardWindow() => InitializeComponent();
+    public WizardWindow()
+    {
+        InitializeComponent();
+        // Size is remembered; position stays centred on the main window.
+        WindowPlacementService.Attach(this, "Wizard", restorePosition: false);
+    }
 
     public WizardWindow(WizardViewModel vm) : this()
     {

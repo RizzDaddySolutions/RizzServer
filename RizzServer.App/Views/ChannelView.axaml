@@ -52,9 +52,9 @@
       <Grid ColumnDefinitions="Auto,*,Auto">
         <TextBlock Text="Devices" VerticalAlignment="Center" Margin="0,0,16,0" />
         <TextBlock Grid.Column="1" Text="{Binding DeviceHint}" TextTrimming="CharacterEllipsis"
-                   Foreground="{StaticResource MutedBrush}" FontWeight="Normal" VerticalAlignment="Center" />
+                   Foreground="{DynamicResource MutedBrush}" FontWeight="Normal" VerticalAlignment="Center" />
         <Button Grid.Column="2" Classes="tool" Command="{Binding AddDeviceCommand}" ToolTip.Tip="New device on this channel">
-          <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{StaticResource PlusIcon}" /><TextBlock Text="New Device…" /></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{DynamicResource PlusIcon}" /><TextBlock Text="New Device…" /></StackPanel>
         </Button>
       </Grid>
     </Border>

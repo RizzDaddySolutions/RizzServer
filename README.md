@@ -37,7 +37,9 @@ Writable tags push OPC UA writes back to the device through the owning driver.
 dotnet run --project RizzServer.App
 ```
 
-Configuration is stored in `%AppData%\RizzServer\config.json` (Windows) or `~/.config/RizzServer/config.json` (Linux/macOS), including any MQTT password in plain text. Certificates live in a `pki` folder next to it. Default endpoint: `opc.tcp://<host>:4840/RizzServer`.
+Configuration is stored in `%AppData%\RizzServer\config.json` (Windows) or `~/.config/RizzServer/config.json` (Linux/macOS), including any MQTT password in plain text. Certificates live in a `pki` folder next to it, and UI preferences (theme, window size and position, pane sizes) in `ui-settings.json`. Set the `RIZZSERVER_DATA_DIR` environment variable to keep all of these in another folder (portable use).
+
+**View ▸ Theme: System / Light / Dark** switches the look; System follows the operating system and is the default. The window remembers its size, position and maximised state. Default endpoint: `opc.tcp://<host>:4840/RizzServer`.
 
 ## Windows installer
 

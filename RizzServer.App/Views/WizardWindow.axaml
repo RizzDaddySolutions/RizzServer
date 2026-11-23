@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:RizzServer.App.ViewModels"
         x:Class="RizzServer.App.Views.WizardWindow"
+        Icon="/Assets/icon.ico"
         Title="{Binding Heading}" Width="640" Height="540" MinWidth="560" MinHeight="460"
         CanResize="True" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
 
@@ -29,7 +30,7 @@
       <StackPanel Spacing="6">
         <TextBlock Text="Channel name" />
         <TextBox Text="{Binding Name}" Watermark="e.g. Boiler Bus" />
-        <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+        <TextBlock Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"
                    Text="The name is used in the OPC UA address space (Channel.Device.Tag), so it cannot contain a period." />
       </StackPanel>
     </DataTemplate>
@@ -40,7 +41,7 @@
           <DataTemplate>
             <StackPanel Margin="2,4" Spacing="2">
               <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding AddressHint}" Foreground="{StaticResource MutedBrush}" FontSize="11"
+              <TextBlock Text="{Binding AddressHint}" Foreground="{DynamicResource MutedBrush}" FontSize="11"
                          TextWrapping="Wrap" MaxHeight="30" TextTrimming="CharacterEllipsis" />
             </StackPanel>
           </DataTemplate>
@@ -51,7 +52,7 @@
     <DataTemplate DataType="vm:ChannelSettingsStep">
       <StackPanel Spacing="8">
         <ItemsControl ItemsSource="{Binding Settings}" ItemTemplate="{StaticResource SettingRow}" />
-        <TextBlock Text="{Binding PortsHint}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding PortsHint}" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" />
       </StackPanel>
     </DataTemplate>
 
@@ -74,7 +75,7 @@
     </DataTemplate>
 
     <DataTemplate DataType="vm:SummaryStep">
-      <Border Background="#F6F8FA" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="12">
+      <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Padding="12">
         <TextBlock Text="{Binding Text}" FontFamily="Consolas,Menlo,monospace" TextWrapping="Wrap" />
       </Border>
     </DataTemplate>
@@ -82,7 +83,7 @@
 
   <DockPanel>
     <!-- Buttons -->
-    <Border DockPanel.Dock="Bottom" Background="{StaticResource ChromeBrush}" BorderBrush="{StaticResource LineBrush}"
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource ChromeBrush}" BorderBrush="{DynamicResource LineBrush}"
             BorderThickness="0,1,0,0" Padding="12,10">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <TextBlock Text="{Binding Error}" Foreground="#C0392B" VerticalAlignment="Center" TextWrapping="Wrap"
@@ -105,7 +106,7 @@
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Spacing="2">
           <TextBlock Text="{Binding Current.Title}" FontSize="16" />
-          <TextBlock Text="{Binding Heading}" FontWeight="Normal" Foreground="{StaticResource MutedBrush}" />
+          <TextBlock Text="{Binding Heading}" FontWeight="Normal" Foreground="{DynamicResource MutedBrush}" />
         </StackPanel>
         <TextBlock Grid.Column="1" Text="{Binding StepText}" FontWeight="Normal" VerticalAlignment="Center" />
       </Grid>

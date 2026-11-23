@@ -12,6 +12,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            ThemeService.Apply(UiSettings.Load().Theme);
             AppState.Instance.Initialize();
             desktop.MainWindow = new Views.MainWindow { DataContext = new ViewModels.MainViewModel() };
             desktop.Exit += (_, _) => AppState.Instance.Shutdown();

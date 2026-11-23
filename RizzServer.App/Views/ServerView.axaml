@@ -32,7 +32,7 @@
       </Grid>
 
       <Border Classes="section"><TextBlock Text="User Manager" /></Border>
-      <TextBlock Margin="8,6" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}"
+      <TextBlock Margin="8,6" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"
                  Text="Passwords are stored as salted hashes. Use a secured endpoint (turn off unsecured connections), otherwise the password travels unencrypted. Adding an existing name changes its password. Changes apply when the runtime is started." />
       <DataGrid ItemsSource="{Binding Server.Users}" SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
                 AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Height="130" Margin="8,0">
@@ -46,7 +46,7 @@
         <Button Grid.Column="4" Content="Add / update" Command="{Binding AddUserCommand}" />
         <Button Grid.Column="6" Content="Remove selected" Command="{Binding RemoveUserCommand}" />
       </Grid>
-      <TextBlock Margin="8,8" Text="{Binding UserMessage}" Foreground="{StaticResource MutedBrush}" />
+      <TextBlock Margin="8,8" Text="{Binding UserMessage}" Foreground="{DynamicResource MutedBrush}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

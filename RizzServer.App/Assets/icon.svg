@@ -1,0 +1,64 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="40" x2="448" y2="472" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="110" y1="110" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6CB33F"/>
+      <stop offset="0.55" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(150 256) rotate(90) scale(150)">
+      <stop offset="0" stop-color="#34D399" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Tile (same frame as RizzExplorer) -->
+  <rect x="32" y="32" width="448" height="448" rx="110" fill="url(#bg)"/>
+  <rect x="56" y="56" width="400" height="400" rx="86" fill="#0B1220" stroke="#94A3B8" stroke-opacity="0.22"/>
+  <circle cx="150" cy="256" r="150" fill="url(#glow)"/>
+
+  <!-- Address-space tree fed by the server -->
+  <g stroke="url(#accent)" stroke-width="9" stroke-linecap="round" fill="none" opacity="0.92">
+    <path d="M212 256C250 256 250 176 290 176"/>
+    <path d="M212 256C250 256 250 336 290 336"/>
+    <path d="M290 176C325 176 335 128 380 128"/>
+    <path d="M290 176C325 176 335 216 380 216"/>
+    <path d="M290 336C325 336 335 296 380 296"/>
+    <path d="M290 336C325 336 335 384 380 384"/>
+  </g>
+
+  <!-- Server rack: three units -->
+  <g fill="#0F172A" stroke="url(#accent)" stroke-width="8">
+    <rect x="92" y="152" width="120" height="56" rx="12"/>
+    <rect x="92" y="228" width="120" height="56" rx="12"/>
+    <rect x="92" y="304" width="120" height="56" rx="12"/>
+  </g>
+  <g fill="url(#accent)">
+    <circle cx="116" cy="180" r="7"/>
+    <circle cx="116" cy="256" r="7"/>
+    <circle cx="116" cy="332" r="7"/>
+  </g>
+  <g fill="#7DD3FC" fill-opacity="0.55">
+    <rect x="140" y="172" width="52" height="6" rx="3"/>
+    <rect x="140" y="182" width="36" height="6" rx="3"/>
+    <rect x="140" y="248" width="52" height="6" rx="3"/>
+    <rect x="140" y="258" width="36" height="6" rx="3"/>
+    <rect x="140" y="324" width="52" height="6" rx="3"/>
+    <rect x="140" y="334" width="36" height="6" rx="3"/>
+  </g>
+
+  <!-- Branches -->
+  <circle cx="290" cy="176" r="22" fill="#0F172A" stroke="#7DD3FC" stroke-width="7"/>
+  <circle cx="290" cy="336" r="22" fill="#0F172A" stroke="#7DD3FC" stroke-width="7"/>
+
+  <!-- Leaves (tags) -->
+  <g fill="#0F172A" stroke="#34D399" stroke-width="6">
+    <circle cx="380" cy="128" r="16"/>
+    <circle cx="380" cy="216" r="16"/>
+    <circle cx="380" cy="296" r="16"/>
+    <circle cx="380" cy="384" r="16"/>
+  </g>
+</svg>

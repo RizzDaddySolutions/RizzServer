@@ -9,7 +9,7 @@
         <TextBox Width="240" Watermark="Value to write" Text="{Binding WriteText}" />
         <Button Content="Write to selected item" Command="{Binding WriteCommand}" />
       </StackPanel>
-      <TextBlock Text="{Binding Message}" Foreground="{StaticResource MutedBrush}" />
+      <TextBlock Text="{Binding Message}" Foreground="{DynamicResource MutedBrush}" />
     </StackPanel>
 
     <DataGrid ItemsSource="{Binding App.RunningTags}" SelectedItem="{Binding Selected, Mode=TwoWay}"

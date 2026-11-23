@@ -1,0 +1,73 @@
+<Window x:Class="RizzServer.App.Views.AboutWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:RizzServer.App.Views"
+        xmlns:core="using:RizzServer.Core"
+        x:DataType="views:AboutWindow"
+        Icon="/Assets/icon.ico"
+        Title="About RizzServer" Width="560" SizeToContent="Height" MaxHeight="720"
+        CanResize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+    <DockPanel Margin="24,20,24,20">
+        <!-- Header -->
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,16" ColumnDefinitions="Auto,*">
+            <Image Source="/Assets/icon.png" Width="72" Height="72" Margin="0,0,16,0" VerticalAlignment="Top"
+                   RenderOptions.BitmapInterpolationMode="HighQuality" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="RizzServer" Classes="pageTitle" />
+                <TextBlock Classes="caption" Margin="0,2,0,0">
+                    <Run Text="Version" /> <Run Text="{Binding Version, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Opacity="0.75"
+                           Text="Cross-platform OPC UA gateway. Collect data from Modbus, RS-232, MQTT, OPC DA and other OPC UA sources and serve it to any OPC UA client." />
+            </StackPanel>
+        </Grid>
+
+        <!-- Buttons -->
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+            <Button DockPanel.Dock="Right" Content="Close" IsDefault="True" IsCancel="True" Click="OnClose"
+                    Classes="accent" Padding="20,6" MinWidth="96" HorizontalContentAlignment="Center" />
+            <TextBlock Text="Built with Avalonia and .NET" Classes="caption" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <TextBlock Classes="sectionHeader" Margin="0,0,0,8">
+                    <Run Text="SUPPORTED DRIVERS (" /><Run Text="{Binding DriverCount, Mode=OneWay}" /><Run Text=")" />
+                </TextBlock>
+                <Border Classes="card" Padding="0">
+                    <ItemsControl ItemsSource="{Binding Drivers}" Margin="0,4">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="core:DriverInfo">
+                                <Grid Margin="14,8" ColumnDefinitions="Auto,*">
+                                    <TextBlock Text="◆" Foreground="#60CDFF" FontSize="14" Margin="0,0,12,0" VerticalAlignment="Top" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                                        <TextBlock Classes="caption" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis">
+                                            <Run Text="Tag address: " /><Run Text="{Binding AddressHint}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+                <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Text="More drivers can be added by implementing a driver and registering it in the driver catalog." />
+
+                <TextBlock Text="COMPONENTS" Classes="sectionHeader" Margin="0,16,0,8" />
+                <Border Classes="card" Padding="14,10">
+                    <ItemsControl ItemsSource="{Binding Components}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="views:ComponentInfo">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                    <TextBlock Text="{Binding Name}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Version}" Classes="caption" VerticalAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

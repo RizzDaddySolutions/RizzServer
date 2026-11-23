@@ -35,7 +35,30 @@ public sealed partial class MainViewModel : ObservableObject
     public Action? Exit { get; set; }
 
     [ObservableProperty] private NavNode? _selectedNode;
-    [ObservableProperty] private bool _logVisible = true;
+    [ObservableProperty] private bool _logVisible = UiSettings.Instance.LogVisible;
+
+    partial void OnLogVisibleChanged(bool value)
+    {
+        UiSettings.Instance.LogVisible = value;
+        UiSettings.Instance.Save();
+    }
+
+    // ---- View ▸ Theme: System / Light / Dark ----
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsThemeSystem), nameof(IsThemeLight), nameof(IsThemeDark))]
+    private ThemeMode _theme = UiSettings.Instance.Theme;
+
+    public bool IsThemeSystem => Theme == ThemeMode.System;
+    public bool IsThemeLight => Theme == ThemeMode.Light;
+    public bool IsThemeDark => Theme == ThemeMode.Dark;
+
+    [RelayCommand]
+    private void SetTheme(string? name)
+    {
+        if (!Enum.TryParse<ThemeMode>(name, out var mode)) return;
+        Theme = mode;
+        ThemeService.Set(mode);
+    }
 
     private ChannelNode? _watched;
 

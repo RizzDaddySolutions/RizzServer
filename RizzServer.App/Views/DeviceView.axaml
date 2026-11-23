@@ -50,7 +50,7 @@
       <Grid ColumnDefinitions="Auto,*,Auto">
         <TextBlock Text="Tags" VerticalAlignment="Center" Margin="0,0,16,0" />
         <TextBlock Grid.Column="1" Text="{Binding AddressHint, StringFormat='Address: {0}'}" TextTrimming="CharacterEllipsis"
-                   Foreground="{StaticResource MutedBrush}" FontWeight="Normal" VerticalAlignment="Center" />
+                   Foreground="{DynamicResource MutedBrush}" FontWeight="Normal" VerticalAlignment="Center" />
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
           <Button Classes="tool" Command="{Binding ImportTagsCommand}" ToolTip.Tip="Add or update tags from a CSV file">
             <TextBlock Text="Import CSV…" />
@@ -58,12 +58,12 @@
           <Button Classes="tool" Command="{Binding ExportTagsCommand}" ToolTip.Tip="Save this device's tags as a CSV file">
             <TextBlock Text="Export CSV…" />
           </Button>
-          <Border Width="1" Margin="2,2" Background="{StaticResource LineBrush}" />
+          <Border Width="1" Margin="2,2" Background="{DynamicResource LineBrush}" />
           <Button Classes="tool" Command="{Binding AddTagCommand}" ToolTip.Tip="New tag">
-            <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{StaticResource PlusIcon}" /><TextBlock Text="New Tag" /></StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{DynamicResource PlusIcon}" /><TextBlock Text="New Tag" /></StackPanel>
           </Button>
           <Button Classes="tool" Command="{Binding RemoveTagCommand}" ToolTip.Tip="Delete selected tag">
-            <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{StaticResource CrossIcon}" /><TextBlock Text="Delete" /></StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{DynamicResource CrossIcon}" /><TextBlock Text="Delete" /></StackPanel>
           </Button>
         </StackPanel>
       </Grid>

@@ -3,6 +3,7 @@
         xmlns:vm="using:RizzServer.App.ViewModels"
         xmlns:v="using:RizzServer.App.Views"
         x:Class="RizzServer.App.Views.MainWindow"
+        Icon="/Assets/icon.ico"
         Title="RizzServer — OPC UA Gateway" Width="1280" Height="820" MinWidth="900" MinHeight="560"
         WindowStartupLocation="CenterScreen">
 
@@ -21,7 +22,7 @@
 
   <DockPanel>
     <!-- Menu bar -->
-    <Menu DockPanel.Dock="Top" Background="White">
+    <Menu DockPanel.Dock="Top" Background="{DynamicResource PanelBrush}">
       <MenuItem Header="_File">
         <MenuItem Header="_Save Project" InputGesture="Ctrl+S" Command="{Binding SaveCommand}" />
         <Separator />
@@ -38,7 +39,15 @@
         <MenuItem Header="_Delete Selected" Command="{Binding DeleteCommand}" />
       </MenuItem>
       <MenuItem Header="_View">
-        <MenuItem Header="_Event Log" Command="{Binding ToggleLogCommand}" />
+        <MenuItem Header="_Event Log" Command="{Binding ToggleLogCommand}" ToggleType="CheckBox"
+                  IsChecked="{Binding LogVisible, Mode=OneWay}" />
+        <Separator />
+        <MenuItem Header="Theme: System" Command="{Binding SetThemeCommand}" CommandParameter="System"
+                  ToggleType="Radio" GroupName="Theme" IsChecked="{Binding IsThemeSystem, Mode=OneWay}" />
+        <MenuItem Header="Theme: Light" Command="{Binding SetThemeCommand}" CommandParameter="Light"
+                  ToggleType="Radio" GroupName="Theme" IsChecked="{Binding IsThemeLight, Mode=OneWay}" />
+        <MenuItem Header="Theme: Dark" Command="{Binding SetThemeCommand}" CommandParameter="Dark"
+                  ToggleType="Radio" GroupName="Theme" IsChecked="{Binding IsThemeDark, Mode=OneWay}" />
       </MenuItem>
       <MenuItem Header="_Runtime">
         <MenuItem Header="_Start" Command="{Binding App.StartCommand}" />
@@ -50,51 +59,51 @@
     </Menu>
 
     <!-- Toolbar -->
-    <Border DockPanel.Dock="Top" Background="{StaticResource ChromeBrush}" BorderBrush="{StaticResource LineBrush}"
+    <Border DockPanel.Dock="Top" Background="{DynamicResource ChromeBrush}" BorderBrush="{DynamicResource LineBrush}"
             BorderThickness="0,1,0,1" Padding="4,2">
       <StackPanel Orientation="Horizontal" Spacing="2">
         <Button Classes="tool" Command="{Binding SaveCommand}" ToolTip.Tip="Save project (Ctrl+S)">
-          <Path Data="{StaticResource SaveIcon}" />
+          <Path Data="{DynamicResource SaveIcon}" />
         </Button>
-        <Border Width="1" Margin="4,2" Background="{StaticResource LineBrush}" />
+        <Border Width="1" Margin="4,2" Background="{DynamicResource LineBrush}" />
         <Button Classes="tool" Command="{Binding AddChannelCommand}" ToolTip.Tip="New channel">
           <StackPanel Orientation="Horizontal" Spacing="4">
-            <Path Data="{StaticResource PlusIcon}" /><TextBlock Text="Channel" VerticalAlignment="Center" />
+            <Path Data="{DynamicResource PlusIcon}" /><TextBlock Text="Channel" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
         <Button Classes="tool" Command="{Binding AddDeviceCommand}" ToolTip.Tip="New device on the selected channel">
           <StackPanel Orientation="Horizontal" Spacing="4">
-            <Path Data="{StaticResource PlusIcon}" /><TextBlock Text="Device" VerticalAlignment="Center" />
+            <Path Data="{DynamicResource PlusIcon}" /><TextBlock Text="Device" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
         <Button Classes="tool" Command="{Binding AddTagCommand}" ToolTip.Tip="New tag on the selected device">
           <StackPanel Orientation="Horizontal" Spacing="4">
-            <Path Data="{StaticResource PlusIcon}" /><TextBlock Text="Tag" VerticalAlignment="Center" />
+            <Path Data="{DynamicResource PlusIcon}" /><TextBlock Text="Tag" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
         <Button Classes="tool" Command="{Binding DeleteCommand}" ToolTip.Tip="Delete selected channel or device">
-          <Path Data="{StaticResource CrossIcon}" />
+          <Path Data="{DynamicResource CrossIcon}" />
         </Button>
-        <Border Width="1" Margin="4,2" Background="{StaticResource LineBrush}" />
+        <Border Width="1" Margin="4,2" Background="{DynamicResource LineBrush}" />
         <Button Classes="tool" Command="{Binding App.StartCommand}" ToolTip.Tip="Start runtime">
           <StackPanel Orientation="Horizontal" Spacing="4">
-            <Path Data="{StaticResource PlayIcon}" Fill="SeaGreen" /><TextBlock Text="Start Runtime" VerticalAlignment="Center" />
+            <Path Data="{DynamicResource PlayIcon}" Fill="SeaGreen" /><TextBlock Text="Start Runtime" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
         <Button Classes="tool" Command="{Binding App.StopCommand}" ToolTip.Tip="Stop runtime">
           <StackPanel Orientation="Horizontal" Spacing="4">
-            <Path Data="{StaticResource StopIcon}" Fill="Firebrick" /><TextBlock Text="Stop Runtime" VerticalAlignment="Center" />
+            <Path Data="{DynamicResource StopIcon}" Fill="Firebrick" /><TextBlock Text="Stop Runtime" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
       </StackPanel>
     </Border>
 
     <!-- Status bar -->
-    <Border DockPanel.Dock="Bottom" Background="{StaticResource HeaderBrush}" BorderBrush="{StaticResource LineBrush}"
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource HeaderBrush}" BorderBrush="{DynamicResource LineBrush}"
             BorderThickness="0,1,0,0" Padding="8,3">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <TextBlock Text="{Binding App.Status}" />
-        <TextBlock Grid.Column="1" Text="{Binding App.EndpointUrl}" Margin="0,0,24,0" Foreground="{StaticResource MutedBrush}" />
+        <TextBlock Grid.Column="1" Text="{Binding App.EndpointUrl}" Margin="0,0,24,0" Foreground="{DynamicResource MutedBrush}" />
         <TextBlock Grid.Column="2" Margin="0,0,24,0">
           <Run Text="Active tags: " /><Run Text="{Binding App.RunningTags.Count, Mode=OneWay}" />
         </TextBlock>
@@ -103,14 +112,14 @@
     </Border>
 
     <!-- Main area: tree | detail, event log below -->
-    <Grid RowDefinitions="*,Auto,Auto">
-      <Grid Grid.Row="0" ColumnDefinitions="260,Auto,*">
-        <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Background="White">
-          <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Background="White">
+    <Grid x:Name="MainArea" RowDefinitions="*,4,190">
+      <Grid x:Name="TopArea" Grid.Row="0" ColumnDefinitions="260,Auto,*">
+        <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0" Background="{DynamicResource PanelBrush}">
+          <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Background="{DynamicResource PanelBrush}">
             <TreeView.ItemTemplate>
               <TreeDataTemplate DataType="vm:NavNode" ItemsSource="{Binding Children}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <Path Data="{Binding Icon}" Width="14" Height="14" Stretch="Uniform" Fill="#B7C7DD" Stroke="#33557F"
+                  <Path Data="{Binding Icon}" Width="14" Height="14" Stretch="Uniform" Fill="{DynamicResource TreeIconFillBrush}" Stroke="{DynamicResource TreeIconStrokeBrush}"
                         StrokeThickness="1" IsVisible="{Binding !ShowStateDot}" />
                   <Ellipse Width="10" Height="10" Fill="{Binding StateBrush}" IsVisible="{Binding ShowStateDot}"
                            VerticalAlignment="Center" />
@@ -120,15 +129,15 @@
             </TreeView.ItemTemplate>
           </TreeView>
         </Border>
-        <GridSplitter Grid.Column="1" Width="4" Background="{StaticResource ChromeBrush}" />
-        <ContentControl Grid.Column="2" Content="{Binding SelectedNode}" Background="White" />
+        <GridSplitter x:Name="TreeSplitter" Grid.Column="1" Width="4" Background="{DynamicResource ChromeBrush}" />
+        <ContentControl Grid.Column="2" Content="{Binding SelectedNode}" Background="{DynamicResource PanelBrush}" />
       </Grid>
 
-      <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch" IsVisible="{Binding LogVisible}"
-                    Background="{StaticResource ChromeBrush}" />
+      <GridSplitter x:Name="LogSplitter" Grid.Row="1" Height="4" HorizontalAlignment="Stretch"
+                    Background="{DynamicResource ChromeBrush}" />
 
       <!-- Event log -->
-      <Grid Grid.Row="2" Height="190" RowDefinitions="Auto,*" IsVisible="{Binding LogVisible}">
+      <Grid x:Name="LogPanel" Grid.Row="2" RowDefinitions="Auto,*" ClipToBounds="True">
         <Border Classes="section"><TextBlock Text="Event Log" /></Border>
         <DataGrid Grid.Row="1" ItemsSource="{Binding App.Logs.Entries}" AutoGenerateColumns="False"
                   IsReadOnly="True" HeadersVisibility="Column" x:Name="LogGrid">

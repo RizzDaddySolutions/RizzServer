@@ -6,8 +6,14 @@ namespace RizzServer.Core;
 
 public static class ConfigStore
 {
+    /// <summary>
+    /// Where the project file, UI settings and certificates live. Defaults to the per-user application-data
+    /// folder; set the <c>RIZZSERVER_DATA_DIR</c> environment variable to use another folder (portable installs, tests).
+    /// </summary>
     public static string DataDirectory { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RizzServer");
+        Environment.GetEnvironmentVariable("RIZZSERVER_DATA_DIR") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RizzServer");
 
     public static string ConfigPath => Path.Combine(DataDirectory, "config.json");
 

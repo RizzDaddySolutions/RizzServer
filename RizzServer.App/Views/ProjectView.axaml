@@ -30,7 +30,7 @@
         <Border Classes="prop-label"><TextBlock Text="Runtime" /></Border>
         <Border Grid.Column="1" Classes="prop-value"><TextBlock Text="{Binding App.Status}" Margin="8,5" /></Border>
       </Grid>
-      <TextBlock Margin="12,16" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+      <TextBlock Margin="12,16" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"
                  Text="Channels hold the communication settings (driver, COM port, broker…). Each channel contains devices, and each device holds tags. Use Start Runtime to publish all enabled devices over OPC UA as Channel.Device.Tag." />
     </StackPanel>
   </DockPanel>
