@@ -43,7 +43,14 @@ public sealed class OpcDaDriver : DriverBase
         _sta.Start();
     }
 
-    protected override Task ConnectAsync(CancellationToken ct) => OnSta(() =>
+    protected override Task ConnectAsync(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows())
+            return Task.FromException(new PlatformNotSupportedException("OPC DA (COM) is only available on Windows."));
+        return ConnectOnStaAsync();
+    }
+
+    private Task<int> ConnectOnStaAsync() => OnSta(() =>
     {
         var type = Type.GetTypeFromProgID("OPC.Automation")
                    ?? throw new InvalidOperationException(

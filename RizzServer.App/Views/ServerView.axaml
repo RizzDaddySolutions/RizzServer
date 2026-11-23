@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RizzServer.App.Views.ServerView">
+  <ScrollViewer>
+    <StackPanel IsEnabled="{Binding App.IsEditable}">
+      <Border Classes="section"><TextBlock Text="OPC UA Server — General" /></Border>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="Application name" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><TextBox Text="{Binding Server.ApplicationName}" /></Border>
+      </Grid>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="TCP port" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><TextBox Text="{Binding Server.Port}" /></Border>
+      </Grid>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="Namespace URI" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><TextBox Text="{Binding Server.NamespaceUri}" /></Border>
+      </Grid>
+
+      <Border Classes="section"><TextBlock Text="Security" /></Border>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="Allow unsecured connections" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><CheckBox IsChecked="{Binding Server.AllowNoSecurity}" VerticalAlignment="Center" /></Border>
+      </Grid>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="Auto-accept client certificates" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><CheckBox IsChecked="{Binding Server.AutoAcceptCertificates}" VerticalAlignment="Center" /></Border>
+      </Grid>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="Allow anonymous access" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><CheckBox IsChecked="{Binding Server.AllowAnonymous}" VerticalAlignment="Center" /></Border>
+      </Grid>
+
+      <Border Classes="section"><TextBlock Text="User Manager" /></Border>
+      <TextBlock Margin="8,6" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}"
+                 Text="Passwords are stored as salted hashes. Use a secured endpoint (turn off unsecured connections), otherwise the password travels unencrypted. Adding an existing name changes its password. Changes apply when the runtime is started." />
+      <DataGrid ItemsSource="{Binding Server.Users}" SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
+                AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Height="130" Margin="8,0">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="User name" Binding="{Binding Username}" Width="*" />
+        </DataGrid.Columns>
+      </DataGrid>
+      <Grid Margin="8,8,8,0" ColumnDefinitions="*,8,*,8,Auto,8,Auto">
+        <TextBox Text="{Binding NewUsername}" Watermark="User name" />
+        <TextBox Grid.Column="2" Text="{Binding NewPassword}" PasswordChar="●" Watermark="Password (8+ chars)" />
+        <Button Grid.Column="4" Content="Add / update" Command="{Binding AddUserCommand}" />
+        <Button Grid.Column="6" Content="Remove selected" Command="{Binding RemoveUserCommand}" />
+      </Grid>
+      <TextBlock Margin="8,8" Text="{Binding UserMessage}" Foreground="{StaticResource MutedBrush}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

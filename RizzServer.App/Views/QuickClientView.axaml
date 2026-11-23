@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RizzServer.App.Views.QuickClientView">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="section"><TextBlock Text="Quick Client — live values (runtime)" /></Border>
+
+    <StackPanel DockPanel.Dock="Bottom" Margin="8" Spacing="6">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox Width="240" Watermark="Value to write" Text="{Binding WriteText}" />
+        <Button Content="Write to selected item" Command="{Binding WriteCommand}" />
+      </StackPanel>
+      <TextBlock Text="{Binding Message}" Foreground="{StaticResource MutedBrush}" />
+    </StackPanel>
+
+    <DataGrid ItemsSource="{Binding App.RunningTags}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Item ID" Binding="{Binding NodePath}" Width="*" />
+        <DataGridTextColumn Header="Data type" Binding="{Binding Config.DataType}" Width="100" />
+        <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="150" />
+        <DataGridTextColumn Header="Timestamp (UTC)" Binding="{Binding Timestamp, StringFormat=HH:mm:ss.fff}" Width="150" />
+        <DataGridTemplateColumn Header="Quality" Width="100">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Quality}" VerticalAlignment="Center" Margin="6,0">
+                <TextBlock.Styles>
+                  <Style Selector="TextBlock"><Setter Property="Foreground" Value="#C0392B" /></Style>
+                  <Style Selector="TextBlock[Text=Good]"><Setter Property="Foreground" Value="#2E7D32" /></Style>
+                  <Style Selector="TextBlock[Text=Uncertain]"><Setter Property="Foreground" Value="#B7791F" /></Style>
+                </TextBlock.Styles>
+              </TextBlock>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Access" Binding="{Binding Config.Access}" Width="100" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

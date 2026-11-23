@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using System.Windows;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -9,7 +9,7 @@ using RizzServer.Server;
 
 namespace RizzServer.App;
 
-/// <summary>Composition root and shared state for all pages.</summary>
+/// <summary>Composition root and shared state for all views.</summary>
 public sealed partial class AppState : ObservableObject
 {
     public static AppState Instance { get; } = new();
@@ -26,8 +26,11 @@ public sealed partial class AppState : ObservableObject
     public ObservableCollection<ConnectionRuntime> RunningConnections { get; } = new();
     public ObservableCollection<TagRuntime> RunningTags { get; } = new();
 
+    /// <summary>Raised on the UI thread after the running collections were rebuilt.</summary>
+    public event Action? RuntimeSynced;
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsEditable))]
+    [NotifyPropertyChangedFor(nameof(IsEditable), nameof(RuntimeText))]
     [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(StopCommand))]
     private bool _isRunning;
 
@@ -39,6 +42,7 @@ public sealed partial class AppState : ObservableObject
     [ObservableProperty] private string _endpointUrl = "";
 
     public bool IsEditable => !IsRunning;
+    public string RuntimeText => IsRunning ? "Runtime: Running" : "Runtime: Stopped";
 
     public void Initialize()
     {
@@ -48,7 +52,7 @@ public sealed partial class AppState : ObservableObject
         Config = ConfigStore.Load();
         Engine = new GatewayEngine(Config, new DriverFactory(_loggers), _loggers.CreateLogger("Engine"));
         Host = new OpcUaHost(Engine, _loggers.CreateLogger("OPC UA"));
-        Engine.RuntimeRebuilt += () => Application.Current.Dispatcher.Invoke(SyncRuntime);
+        Engine.RuntimeRebuilt += () => Dispatcher.UIThread.Invoke(SyncRuntime);
         _log.LogInformation("Loaded {Count} connection(s) from {Path}", Config.Connections.Count, ConfigStore.ConfigPath);
     }
 
@@ -58,12 +62,13 @@ public sealed partial class AppState : ObservableObject
         foreach (var c in Engine.Connections) RunningConnections.Add(c);
         RunningTags.Clear();
         foreach (var t in Engine.Tags) RunningTags.Add(t);
+        RuntimeSynced?.Invoke();
     }
 
     public void Save()
     {
-        try { ConfigStore.Save(Config); _log.LogInformation("Configuration saved"); }
-        catch (Exception ex) { _log.LogError(ex, "Could not save configuration"); }
+        try { ConfigStore.Save(Config); _log.LogInformation("Project saved to {Path}", ConfigStore.ConfigPath); }
+        catch (Exception ex) { _log.LogError(ex, "Could not save project"); }
     }
 
     [RelayCommand(CanExecute = nameof(CanStart))]
@@ -117,7 +122,13 @@ public sealed partial class AppState : ObservableObject
     }
 }
 
-public sealed record LogEntry(DateTime Time, LogLevel Level, string Category, string Message);
+public sealed record LogEntry(DateTime Time, LogLevel Level, string Category, string Message)
+{
+    public string Date => Time.ToString("yyyy-MM-dd");
+    public string Clock => Time.ToString("HH:mm:ss.fff");
+    public string Glyph => Level switch { LogLevel.Error or LogLevel.Critical => "✖", LogLevel.Warning => "▲", _ => "●" };
+    public string Color => Level switch { LogLevel.Error or LogLevel.Critical => "#C0392B", LogLevel.Warning => "#B7791F", _ => "#2F6DB5" };
+}
 
 public sealed class LogService : ILoggerProvider
 {
@@ -127,16 +138,11 @@ public sealed class LogService : ILoggerProvider
 
     public void Dispose() { }
 
-    private void Add(LogEntry entry)
+    private void Add(LogEntry entry) => Dispatcher.UIThread.Post(() =>
     {
-        var d = Application.Current?.Dispatcher;
-        if (d is null) return;
-        d.BeginInvoke(() =>
-        {
-            Entries.Add(entry);
-            while (Entries.Count > 1000) Entries.RemoveAt(0);
-        });
-    }
+        Entries.Add(entry);
+        while (Entries.Count > 1000) Entries.RemoveAt(0);
+    });
 
     private sealed class UiLogger(LogService owner, string category) : ILogger
     {

@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RizzServer.App.Views.ConnectivityView">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="section"><TextBlock Text="Connectivity — Channels" /></Border>
+    <TextBlock DockPanel.Dock="Bottom" Margin="8" Foreground="{StaticResource MutedBrush}"
+               Text="Double-click a channel to open it. Use Edit ▸ New Channel to add one." />
+    <DataGrid ItemsSource="{Binding Connections}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+              DoubleTapped="OnRowDoubleTapped" BorderThickness="0">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200" />
+        <DataGridTextColumn Header="Driver" Binding="{Binding DriverType}" Width="140" />
+        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="90" />
+        <DataGridTextColumn Header="Scan rate (ms)" Binding="{Binding PollIntervalMs}" Width="120" />
+        <DataGridTextColumn Header="Tags" Binding="{Binding Tags.Count}" Width="80" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

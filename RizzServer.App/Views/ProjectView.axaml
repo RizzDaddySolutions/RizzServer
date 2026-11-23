@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RizzServer.App.Views.ProjectView">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="section"><TextBlock Text="Project Properties" /></Border>
+    <StackPanel>
+      <Grid ColumnDefinitions="200,*">
+        <Border Classes="prop-label"><TextBlock Text="Project file" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><TextBlock Text="{Binding ProjectPath}" Margin="8,5" /></Border>
+      </Grid>
+      <Grid ColumnDefinitions="200,*">
+        <Border Classes="prop-label"><TextBlock Text="Channels" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><TextBlock Text="{Binding App.Config.Connections.Count}" Margin="8,5" /></Border>
+      </Grid>
+      <Grid ColumnDefinitions="200,*">
+        <Border Classes="prop-label"><TextBlock Text="OPC UA endpoint" /></Border>
+        <Border Grid.Column="1" Classes="prop-value">
+          <TextBlock Text="{Binding App.EndpointUrl, FallbackValue=(runtime stopped)}" Margin="8,5" />
+        </Border>
+      </Grid>
+      <Grid ColumnDefinitions="200,*">
+        <Border Classes="prop-label"><TextBlock Text="Runtime" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><TextBlock Text="{Binding App.Status}" Margin="8,5" /></Border>
+      </Grid>
+      <TextBlock Margin="12,16" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                 Text="Select Connectivity to manage channels, or a channel to edit its driver settings and tags. Use Start Runtime to publish all enabled channels over OPC UA." />
+    </StackPanel>
+  </DockPanel>
+</UserControl>

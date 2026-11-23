@@ -61,7 +61,8 @@ public sealed class GatewayEngine
                 {
                     cr.State = state;
                     cr.Message = msg ?? "";
-                    _log.LogInformation("[{Conn}] {State} {Msg}", cfg.Name, state, msg);
+                    if (string.IsNullOrEmpty(msg)) _log.LogInformation("[{Conn}] {State}", cfg.Name, state);
+                    else _log.LogWarning("[{Conn}] {State}: {Msg}", cfg.Name, state, msg);
                 };
                 _drivers[cr] = driver;
                 await driver.StartAsync();
