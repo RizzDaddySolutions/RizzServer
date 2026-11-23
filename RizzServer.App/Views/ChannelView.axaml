@@ -54,7 +54,7 @@
         <TextBlock Grid.Column="1" Text="{Binding DeviceHint}" TextTrimming="CharacterEllipsis"
                    Foreground="{StaticResource MutedBrush}" FontWeight="Normal" VerticalAlignment="Center" />
         <Button Grid.Column="2" Classes="tool" Command="{Binding AddDeviceCommand}" ToolTip.Tip="New device on this channel">
-          <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{StaticResource PlusIcon}" /><TextBlock Text="New Device" /></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{StaticResource PlusIcon}" /><TextBlock Text="New Device…" /></StackPanel>
         </Button>
       </Grid>
     </Border>

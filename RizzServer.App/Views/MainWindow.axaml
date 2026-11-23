@@ -28,8 +28,8 @@
         <MenuItem Header="E_xit" Command="{Binding ExitAppCommand}" />
       </MenuItem>
       <MenuItem Header="_Edit">
-        <MenuItem Header="New _Channel" Command="{Binding AddChannelCommand}" />
-        <MenuItem Header="New _Device" Command="{Binding AddDeviceCommand}" />
+        <MenuItem Header="New _Channel…" Command="{Binding AddChannelCommand}" />
+        <MenuItem Header="New _Device…" Command="{Binding AddDeviceCommand}" />
         <MenuItem Header="New _Tag" Command="{Binding AddTagCommand}" />
         <Separator />
         <MenuItem Header="_Delete Selected" Command="{Binding DeleteCommand}" />

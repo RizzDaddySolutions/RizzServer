@@ -13,7 +13,7 @@ public sealed partial class MainViewModel : ObservableObject
     public MainViewModel()
     {
         var project = new ProjectNode();
-        _connectivity = new ConnectivityNode(n => SelectedNode = n);
+        _connectivity = new ConnectivityNode(n => SelectedNode = n, RunDeviceWizardAsync);
         project.Children.Add(_connectivity);
         project.Children.Add(new ServerNode());
         project.Children.Add(new QuickClientNode());
@@ -74,18 +74,38 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void Save() => App.Save();
 
+    /// <summary>Shows a wizard; returns true when the user finished it. Set by the window.</summary>
+    public Func<WizardViewModel, Task<bool>>? ShowWizard { get; set; }
+
+    /// <summary>New Channel wizard: channel + its first device.</summary>
     [RelayCommand(CanExecute = nameof(IsEditable))]
-    private void AddChannel()
+    private async Task AddChannelAsync()
     {
-        var n = 1;
-        while (App.Config.Channels.Any(c => c.Name == $"Channel{n}")) n++;
-        var channel = new ChannelConfig { Name = $"Channel{n}" };
-        App.Config.Channels.Add(channel);
-        if (_connectivity.NodeFor(channel) is { } node) SelectedNode = node;
+        if (ShowWizard is null) return;
+        var wizard = WizardViewModel.ForNewChannel(App.Config);
+        if (!await ShowWizard(wizard)) return;
+
+        var (channel, device) = wizard.Commit();
+        if (_connectivity.NodeFor(channel) is { } channelNode)
+            SelectedNode = (NavNode?)channelNode.NodeFor(device) ?? channelNode;
+    }
+
+    /// <summary>New Device wizard for an existing channel.</summary>
+    private async Task RunDeviceWizardAsync(ChannelNode channel)
+    {
+        if (ShowWizard is null) return;
+        var wizard = WizardViewModel.ForNewDevice(App.Config, channel.Config);
+        if (!await ShowWizard(wizard)) return;
+
+        var (_, device) = wizard.Commit();
+        if (channel.NodeFor(device) is { } node) SelectedNode = node;
     }
 
     [RelayCommand(CanExecute = nameof(CanAddDevice))]
-    private void AddDevice() => CurrentChannel?.AddDeviceCommand.Execute(null);
+    private async Task AddDeviceAsync()
+    {
+        if (CurrentChannel is { } channel) await channel.AddDeviceCommand.ExecuteAsync(null);
+    }
 
     [RelayCommand(CanExecute = nameof(CanAddTag))]
     private void AddTag() => CurrentDevice?.AddTagCommand.Execute(null);

@@ -1,0 +1,122 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RizzServer.App.ViewModels"
+        x:Class="RizzServer.App.Views.WizardWindow"
+        Title="{Binding Heading}" Width="640" Height="540" MinWidth="560" MinHeight="460"
+        CanResize="True" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+  </Window.KeyBindings>
+
+  <Window.Resources>
+    <!-- Shared by the two settings pages -->
+    <DataTemplate x:Key="SettingRow" DataType="vm:SettingItem">
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="{Binding Label}" /></Border>
+        <Border Grid.Column="1" Classes="prop-value">
+          <Panel>
+            <TextBox Text="{Binding Value}" PasswordChar="{Binding PasswordChar}" IsVisible="{Binding IsFreeText}" />
+            <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" IsVisible="{Binding HasOptions}" />
+          </Panel>
+        </Border>
+      </Grid>
+    </DataTemplate>
+  </Window.Resources>
+
+  <Window.DataTemplates>
+    <DataTemplate DataType="vm:ChannelNameStep">
+      <StackPanel Spacing="6">
+        <TextBlock Text="Channel name" />
+        <TextBox Text="{Binding Name}" Watermark="e.g. Boiler Bus" />
+        <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                   Text="The name is used in the OPC UA address space (Channel.Device.Tag), so it cannot contain a period." />
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:DriverStep">
+      <ListBox ItemsSource="{Binding Drivers}" SelectedItem="{Binding Selected}" Height="290">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Margin="2,4" Spacing="2">
+              <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding AddressHint}" Foreground="{StaticResource MutedBrush}" FontSize="11"
+                         TextWrapping="Wrap" MaxHeight="30" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:ChannelSettingsStep">
+      <StackPanel Spacing="8">
+        <ItemsControl ItemsSource="{Binding Settings}" ItemTemplate="{StaticResource SettingRow}" />
+        <TextBlock Text="{Binding PortsHint}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:DeviceNameStep">
+      <StackPanel Spacing="6">
+        <TextBlock Text="Device name" />
+        <TextBox Text="{Binding Name}" Watermark="e.g. Burner" />
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:DeviceSettingsStep">
+      <ItemsControl ItemsSource="{Binding Settings}" ItemTemplate="{StaticResource SettingRow}" />
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:TimingStep">
+      <StackPanel Spacing="6">
+        <TextBlock Text="Scan rate (ms)" />
+        <TextBox Text="{Binding ScanRate}" Width="160" HorizontalAlignment="Left" />
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:SummaryStep">
+      <Border Background="#F6F8FA" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="12">
+        <TextBlock Text="{Binding Text}" FontFamily="Consolas,Menlo,monospace" TextWrapping="Wrap" />
+      </Border>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <DockPanel>
+    <!-- Buttons -->
+    <Border DockPanel.Dock="Bottom" Background="{StaticResource ChromeBrush}" BorderBrush="{StaticResource LineBrush}"
+            BorderThickness="0,1,0,0" Padding="12,10">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <TextBlock Text="{Binding Error}" Foreground="#C0392B" VerticalAlignment="Center" TextWrapping="Wrap"
+                   IsVisible="{Binding HasError}" />
+        <Button Grid.Column="1" Content="&lt; Back" Command="{Binding BackCommand}" MinWidth="84" Margin="0,0,6,0"
+                HorizontalContentAlignment="Center" />
+        <Panel Grid.Column="2" Margin="0,0,16,0">
+          <Button Content="Next &gt;" Command="{Binding NextCommand}" IsDefault="True" MinWidth="84"
+                  HorizontalContentAlignment="Center" IsVisible="{Binding !IsLast}" />
+          <Button Content="Finish" Command="{Binding FinishCommand}" IsDefault="True" MinWidth="84"
+                  HorizontalContentAlignment="Center" IsVisible="{Binding IsLast}" />
+        </Panel>
+        <Button Grid.Column="3" Content="Cancel" Command="{Binding CancelCommand}" MinWidth="84"
+                HorizontalContentAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <!-- Header band -->
+    <Border DockPanel.Dock="Top" Classes="section" Padding="16,10">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding Current.Title}" FontSize="16" />
+          <TextBlock Text="{Binding Heading}" FontWeight="Normal" Foreground="{StaticResource MutedBrush}" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="{Binding StepText}" FontWeight="Normal" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <!-- Page -->
+    <ScrollViewer>
+      <StackPanel Margin="20,16" Spacing="14">
+        <TextBlock Text="{Binding Current.Description}" TextWrapping="Wrap" />
+        <ContentControl Content="{Binding Current}" />
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

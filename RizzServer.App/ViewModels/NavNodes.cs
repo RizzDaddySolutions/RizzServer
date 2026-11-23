@@ -79,12 +79,14 @@ public sealed class ProjectNode : NavNode
 public sealed partial class ConnectivityNode : NavNode
 {
     private readonly Action<NavNode> _select;
+    private readonly Func<ChannelNode, Task> _addDevice;
 
-    public ConnectivityNode(Action<NavNode> select) : base("Connectivity", Res("FolderIcon"))
+    public ConnectivityNode(Action<NavNode> select, Func<ChannelNode, Task> addDevice) : base("Connectivity", Res("FolderIcon"))
     {
         _select = select;
+        _addDevice = addDevice;
         var channels = AppState.Instance.Config.Channels;
-        foreach (var c in channels) Children.Add(new ChannelNode(c, select));
+        foreach (var c in channels) Children.Add(new ChannelNode(c, select, addDevice));
         channels.CollectionChanged += OnChannelsChanged;
     }
 
@@ -102,7 +104,7 @@ public sealed partial class ConnectivityNode : NavNode
                     Children.Remove(gone);
                 }
         if (e.NewItems is not null)
-            foreach (ChannelConfig c in e.NewItems) Children.Add(new ChannelNode(c, _select));
+            foreach (ChannelConfig c in e.NewItems) Children.Add(new ChannelNode(c, _select, _addDevice));
     }
 
     public void Open(ChannelConfig? config)
@@ -116,10 +118,13 @@ public sealed partial class ConnectivityNode : NavNode
 public sealed partial class ChannelNode : NavNode
 {
     private readonly Action<NavNode> _select;
+    private readonly Func<ChannelNode, Task> _addDevice;
 
-    public ChannelNode(ChannelConfig config, Action<NavNode> select) : base(config.Name, Res("ServerIcon"))
+    public ChannelNode(ChannelConfig config, Action<NavNode> select, Func<ChannelNode, Task> addDevice)
+        : base(config.Name, Res("ServerIcon"))
     {
         _select = select;
+        _addDevice = addDevice;
         Config = config;
         config.PropertyChanged += OnConfigChanged;
         config.Devices.CollectionChanged += OnDevicesChanged;
@@ -235,15 +240,9 @@ public sealed partial class ChannelNode : NavNode
         });
     }
 
+    /// <summary>Opens the New Device wizard for this channel.</summary>
     [RelayCommand(CanExecute = nameof(CanAddDevice))]
-    private void AddDevice()
-    {
-        var n = Config.Devices.Count + 1;
-        while (Config.Devices.Any(d => d.Name == $"Device{n}")) n++;
-        var device = new DeviceConfig { Name = $"Device{n}" };
-        Config.Devices.Add(device);
-        if (NodeFor(device) is { } node) _select(node);
-    }
+    private Task AddDeviceAsync() => _addDevice(this);
 
     public void Open(DeviceConfig? device)
     {

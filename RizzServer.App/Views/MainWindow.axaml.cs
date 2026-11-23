@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         vm.Confirm = text => Dialogs.ConfirmAsync(this, text);
         vm.ShowAbout = () => Dialogs.MessageAsync(this, "About RizzServer",
             "RizzServer — OPC UA gateway\nModbus · RS-232 · MQTT · OPC DA · OPC UA");
+        vm.ShowWizard = wizard => WizardWindow.RunAsync(this, wizard);
         vm.Exit = Close;
     }
 }
