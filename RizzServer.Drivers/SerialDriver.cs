@@ -15,6 +15,7 @@ public sealed class SerialDriver : DriverBase
     private readonly StringBuilder _buffer = new();
     private readonly object _lock = new();
     private SerialPort? _port;
+    private SerialPortLease? _lease;
     private string _terminator = "\n";
     private string _separator = ",";
 
@@ -29,21 +30,18 @@ public sealed class SerialDriver : DriverBase
         _separator = Config.Setting("Separator", ",");
         _buffer.Clear();
 
-        _port = new SerialPort(Config.Setting("PortName", "COM1"), Config.SettingInt("BaudRate", 9600),
-            Enum.Parse<Parity>(Config.Setting("Parity", "None")), Config.SettingInt("DataBits", 8),
-            Enum.Parse<StopBits>(Config.Setting("StopBits", "One")))
-        {
-            Encoding = Encoding.ASCII,
-        };
+        // Receive-only stream: one device per port.
+        _lease = SerialPortHub.Acquire(Config, exclusive: true, p => p.Encoding = Encoding.ASCII);
+        _port = _lease.Port;
         _port.DataReceived += OnData;
-        _port.Open();
         return Task.CompletedTask;
     }
 
     protected override Task DisconnectAsync()
     {
         if (_port is not null) _port.DataReceived -= OnData;
-        _port?.Dispose();
+        _lease?.Dispose();
+        _lease = null;
         _port = null;
         return Task.CompletedTask;
     }

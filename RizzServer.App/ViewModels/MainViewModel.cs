@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RizzServer.Core;
@@ -21,10 +22,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         App.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName != nameof(AppState.IsEditable)) return;
-            AddConnectionCommand.NotifyCanExecuteChanged();
-            AddTagCommand.NotifyCanExecuteChanged();
-            DeleteConnectionCommand.NotifyCanExecuteChanged();
+            if (e.PropertyName == nameof(AppState.IsEditable)) NotifyCommands();
         };
     }
 
@@ -36,41 +34,84 @@ public sealed partial class MainViewModel : ObservableObject
     public Func<Task>? ShowAbout { get; set; }
     public Action? Exit { get; set; }
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(AddTagCommand), nameof(DeleteConnectionCommand))]
-    private NavNode? _selectedNode;
-
+    [ObservableProperty] private NavNode? _selectedNode;
     [ObservableProperty] private bool _logVisible = true;
 
-    private ConnectionNode? CurrentConnection => SelectedNode as ConnectionNode;
+    private ChannelNode? _watched;
+
+    partial void OnSelectedNodeChanged(NavNode? value)
+    {
+        // The channel's "can add device" flag changes with its device count.
+        if (_watched is not null) _watched.PropertyChanged -= OnWatchedChannelChanged;
+        _watched = CurrentChannel;
+        if (_watched is not null) _watched.PropertyChanged += OnWatchedChannelChanged;
+        NotifyCommands();
+    }
+
+    private void OnWatchedChannelChanged(object? s, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ChannelNode.CanAddDevice)) NotifyCommands();
+    }
+
+    private void NotifyCommands()
+    {
+        AddChannelCommand.NotifyCanExecuteChanged();
+        AddDeviceCommand.NotifyCanExecuteChanged();
+        AddTagCommand.NotifyCanExecuteChanged();
+        DeleteCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>The channel the selection belongs to (the channel itself or one of its devices).</summary>
+    private ChannelNode? CurrentChannel => SelectedNode switch
+    {
+        ChannelNode c => c,
+        DeviceNode d => _connectivity.Children.OfType<ChannelNode>().FirstOrDefault(c => c.Children.Contains(d)),
+        _ => null,
+    };
+
+    private DeviceNode? CurrentDevice => SelectedNode as DeviceNode;
 
     [RelayCommand]
     private void Save() => App.Save();
 
     [RelayCommand(CanExecute = nameof(IsEditable))]
-    private void AddConnection()
+    private void AddChannel()
     {
         var n = 1;
-        while (App.Config.Connections.Any(c => c.Name == $"Channel{n}")) n++;
-        var conn = new ConnectionConfig { Name = $"Channel{n}" };
-        App.Config.Connections.Add(conn);
-        if (_connectivity.NodeFor(conn) is { } node) SelectedNode = node;
+        while (App.Config.Channels.Any(c => c.Name == $"Channel{n}")) n++;
+        var channel = new ChannelConfig { Name = $"Channel{n}" };
+        App.Config.Channels.Add(channel);
+        if (_connectivity.NodeFor(channel) is { } node) SelectedNode = node;
     }
 
-    [RelayCommand(CanExecute = nameof(CanEditConnection))]
-    private void AddTag() => CurrentConnection?.AddTagCommand.Execute(null);
+    [RelayCommand(CanExecute = nameof(CanAddDevice))]
+    private void AddDevice() => CurrentChannel?.AddDeviceCommand.Execute(null);
 
-    [RelayCommand(CanExecute = nameof(CanEditConnection))]
-    private async Task DeleteConnectionAsync()
+    [RelayCommand(CanExecute = nameof(CanAddTag))]
+    private void AddTag() => CurrentDevice?.AddTagCommand.Execute(null);
+
+    [RelayCommand(CanExecute = nameof(CanDelete))]
+    private async Task DeleteAsync()
     {
-        if (CurrentConnection is not { } node) return;
-        if (Confirm is not null && !await Confirm($"Delete '{node.Title}' and its {node.Config.Tags.Count} tag(s)?")) return;
-        SelectedNode = _connectivity;
-        App.Config.Connections.Remove(node.Config);
+        switch (SelectedNode)
+        {
+            case DeviceNode device when CurrentChannel is { } channel:
+                if (Confirm is not null && !await Confirm($"Delete device '{device.Title}' and its {device.Config.Tags.Count} tag(s)?")) return;
+                SelectedNode = channel;
+                channel.Config.Devices.Remove(device.Config);
+                break;
+            case ChannelNode channel:
+                if (Confirm is not null && !await Confirm($"Delete channel '{channel.Title}' with {channel.Config.Devices.Count} device(s)?")) return;
+                SelectedNode = _connectivity;
+                App.Config.Channels.Remove(channel.Config);
+                break;
+        }
     }
 
     private bool IsEditable() => App.IsEditable;
-    private bool CanEditConnection() => CurrentConnection is not null && App.IsEditable;
+    private bool CanAddDevice() => App.IsEditable && CurrentChannel is { CanAddDevice: true };
+    private bool CanAddTag() => App.IsEditable && CurrentDevice is not null;
+    private bool CanDelete() => App.IsEditable && SelectedNode is ChannelNode or DeviceNode;
 
     [RelayCommand]
     private void ToggleLog() => LogVisible = !LogVisible;

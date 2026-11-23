@@ -18,8 +18,11 @@ namespace RizzServer.Drivers;
 /// </summary>
 public sealed class Rs232PollDriver : DriverBase
 {
-    private readonly SemaphoreSlim _io = new(1, 1);
     private SerialPort? _port;
+    private SerialPortLease? _lease;
+    private int _timeoutMs = 1000;
+
+    private SemaphoreSlim Io => _lease?.Lock ?? throw new IOException("Serial port closed.");
     private string _replyTerminator = "\r\n";
     private string _commandTerminator = "\r";
     private string _separator = ",";
@@ -44,28 +47,25 @@ public sealed class Rs232PollDriver : DriverBase
         _separator = Config.Setting("Separator", ",");
         _gapMs = Math.Max(0, Config.SettingInt("InterCommandDelayMs", 50));
 
-        _port = new SerialPort(Config.Setting("PortName", "COM1"), Config.SettingInt("BaudRate", 9600),
-            Enum.Parse<Parity>(Config.Setting("Parity", "None")), Config.SettingInt("DataBits", 8),
-            Enum.Parse<StopBits>(Config.Setting("StopBits", "One")))
-        {
-            Encoding = Encoding.Latin1,
-            ReadTimeout = Config.SettingInt("TimeoutMs", 1000),
-            WriteTimeout = Config.SettingInt("TimeoutMs", 1000),
-        };
-        _port.Open();
+        _timeoutMs = Config.SettingInt("TimeoutMs", 1000);
+        // Devices on the channel share the bus; exchanges are serialised by the lease's lock.
+        _lease = SerialPortHub.Acquire(Config, exclusive: false, p => p.Encoding = Encoding.Latin1);
+        _port = _lease.Port;
         return Task.CompletedTask;
     }
 
     protected override Task DisconnectAsync()
     {
-        _port?.Dispose();
+        _lease?.Dispose();
+        _lease = null;
         _port = null;
         return Task.CompletedTask;
     }
 
     protected override async Task PollAsync(CancellationToken ct)
     {
-        await _io.WaitAsync(ct);
+        var io = Io;
+        await io.WaitAsync(ct);
         try
         {
             var first = true;
@@ -96,13 +96,15 @@ public sealed class Rs232PollDriver : DriverBase
                 }
             }
         }
-        finally { _io.Release(); }
+        finally { io.Release(); }
     }
 
     /// <summary>Sends one command and reads one terminated reply. Throws TimeoutException if none arrives.</summary>
     private string Exchange(string command)
     {
         var port = _port is { IsOpen: true } p ? p : throw new IOException("Serial port closed.");
+        port.ReadTimeout = _timeoutMs;   // per-device timeout on a shared port (set under the bus lock)
+        port.WriteTimeout = _timeoutMs;
         port.DiscardInBuffer();
         port.Write(Unescape(command) + _commandTerminator);
         return port.ReadTo(_replyTerminator);
@@ -133,12 +135,13 @@ public sealed class Rs232PollDriver : DriverBase
         var text = value is bool b ? (b ? "1" : "0") : Convert.ToString(value, CultureInfo.InvariantCulture) ?? "";
         var payload = Unescape(template.Replace("{0}", text)) + _commandTerminator;
 
-        await _io.WaitAsync(ct);
+        var io = Io;
+        await io.WaitAsync(ct);
         try
         {
             var port = _port is { IsOpen: true } p ? p : throw new InvalidOperationException("Not connected.");
             port.Write(payload);
         }
-        finally { _io.Release(); }
+        finally { io.Release(); }
     }
 }

@@ -24,7 +24,8 @@ public sealed class MqttDriver : DriverBase
     {
         var builder = new MqttClientOptionsBuilder()
             .WithTcpServer(Config.Setting("Host", "localhost"), Config.SettingInt("Port", 1883))
-            .WithClientId(Config.Setting("ClientId", "rizzserver"))
+            // One broker connection per device, so make the client id unique per device.
+            .WithClientId($"{Config.Setting("ClientId", "rizzserver")}-{Config.DeviceName}")
             .WithCleanSession();
 
         var user = Config.Setting("Username");

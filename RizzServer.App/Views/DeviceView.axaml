@@ -1,41 +1,33 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="RizzServer.App.Views.ConnectionView">
+             x:Class="RizzServer.App.Views.DeviceView">
   <Grid RowDefinitions="Auto,Auto,Auto,*" IsEnabled="{Binding App.IsEditable}">
 
-    <!-- Status line -->
     <Border Grid.Row="0" Classes="section">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock>
-          <Run Text="Channel Properties — " /><Run Text="{Binding Title}" />
+          <Run Text="Device Properties — " /><Run Text="{Binding ChannelName}" /><Run Text="." /><Run Text="{Binding Title}" />
         </TextBlock>
         <TextBlock Grid.Column="1" Text="{Binding StateText}" />
       </Grid>
     </Border>
 
-    <!-- General + driver settings (property grid) -->
-    <ScrollViewer Grid.Row="1" MaxHeight="330" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Grid.Row="1" MaxHeight="300" VerticalScrollBarVisibility="Auto">
       <StackPanel>
         <Grid ColumnDefinitions="220,*">
           <Border Classes="prop-label"><TextBlock Text="Name" /></Border>
           <Border Grid.Column="1" Classes="prop-value"><TextBox Text="{Binding Config.Name}" /></Border>
         </Grid>
         <Grid ColumnDefinitions="220,*">
-          <Border Classes="prop-label"><TextBlock Text="Driver" /></Border>
-          <Border Grid.Column="1" Classes="prop-value">
-            <ComboBox ItemsSource="{Binding DriverTypes}" SelectedItem="{Binding Config.DriverType}" />
-          </Border>
-        </Grid>
-        <Grid ColumnDefinitions="220,*">
           <Border Classes="prop-label"><TextBlock Text="Scan rate (ms)" /></Border>
-          <Border Grid.Column="1" Classes="prop-value"><TextBox Text="{Binding Config.PollIntervalMs}" /></Border>
+          <Border Grid.Column="1" Classes="prop-value"><TextBox Text="{Binding Config.ScanRateMs}" /></Border>
         </Grid>
         <Grid ColumnDefinitions="220,*">
           <Border Classes="prop-label"><TextBlock Text="Enabled" /></Border>
           <Border Grid.Column="1" Classes="prop-value"><CheckBox IsChecked="{Binding Config.Enabled}" VerticalAlignment="Center" /></Border>
         </Grid>
 
-        <Border Classes="section"><TextBlock Text="Communications" /></Border>
+        <Border Classes="section" IsVisible="{Binding HasSettings}"><TextBlock Text="Device settings" /></Border>
         <ItemsControl ItemsSource="{Binding Settings}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>
@@ -54,7 +46,6 @@
       </StackPanel>
     </ScrollViewer>
 
-    <!-- Tag list toolbar -->
     <Border Grid.Row="2" Classes="section">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <TextBlock Text="Tags" VerticalAlignment="Center" Margin="0,0,16,0" />

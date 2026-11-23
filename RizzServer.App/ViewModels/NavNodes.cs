@@ -2,23 +2,24 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia.Media;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RizzServer.Core;
 
 namespace RizzServer.App.ViewModels;
 
-/// <summary>One editable driver setting, written straight back to the connection's settings dictionary.</summary>
+/// <summary>One editable driver setting, written straight back to a channel's or device's settings dictionary.</summary>
 public sealed partial class SettingItem : ObservableObject
 {
-    private readonly ConnectionConfig _conn;
+    private readonly IDictionary<string, string> _target;
 
-    public SettingItem(ConnectionConfig conn, SettingDescriptor descriptor)
+    public SettingItem(IDictionary<string, string> target, SettingDescriptor descriptor)
     {
-        _conn = conn;
+        _target = target;
         Descriptor = descriptor;
-        _value = conn.Settings.TryGetValue(descriptor.Key, out var v) ? v : descriptor.Default;
-        conn.Settings[descriptor.Key] = _value;
+        _value = target.TryGetValue(descriptor.Key, out var v) ? v : descriptor.Default;
+        target[descriptor.Key] = _value;
     }
 
     public SettingDescriptor Descriptor { get; }
@@ -30,7 +31,7 @@ public sealed partial class SettingItem : ObservableObject
 
     [ObservableProperty] private string _value;
 
-    partial void OnValueChanged(string value) => _conn.Settings[Descriptor.Key] = value ?? "";
+    partial void OnValueChanged(string value) => _target[Descriptor.Key] = value ?? "";
 }
 
 /// <summary>A node in the project tree. The detail pane is chosen by node type.</summary>
@@ -49,7 +50,7 @@ public abstract partial class NavNode : ObservableObject
     [ObservableProperty] private string _title;
     [ObservableProperty] private bool _isExpanded = true;
 
-    /// <summary>Connection nodes show a status dot instead of an icon.</summary>
+    /// <summary>Channel and device nodes show a status dot instead of an icon.</summary>
     public virtual bool ShowStateDot => false;
     [ObservableProperty] private IBrush _stateBrush = Brushes.Gray;
 
@@ -57,12 +58,22 @@ public abstract partial class NavNode : ObservableObject
         Avalonia.Application.Current!.TryGetResource(key, null, out var res) && res is Geometry g
             ? g
             : Geometry.Parse("M0,0");
+
+    protected static IBrush BrushFor(ConnectionState? state, bool enabled) => !enabled ? Brushes.LightGray : state switch
+    {
+        ConnectionState.Connected => Brushes.SeaGreen,
+        ConnectionState.Connecting => Brushes.Goldenrod,
+        ConnectionState.Faulted => Brushes.Firebrick,
+        _ => Brushes.Gray,
+    };
 }
 
 public sealed class ProjectNode : NavNode
 {
     public ProjectNode() : base("Project", Res("ProjectIcon")) { }
     public string ProjectPath => ConfigStore.ConfigPath;
+    public int DeviceCount => App.Config.Channels.Sum(c => c.Devices.Count);
+    public int TagCount => App.Config.Channels.Sum(c => c.Devices.Sum(d => d.Tags.Count));
 }
 
 public sealed partial class ConnectivityNode : NavNode
@@ -72,60 +83,202 @@ public sealed partial class ConnectivityNode : NavNode
     public ConnectivityNode(Action<NavNode> select) : base("Connectivity", Res("FolderIcon"))
     {
         _select = select;
-        var conns = AppState.Instance.Config.Connections;
-        foreach (var c in conns) Children.Add(new ConnectionNode(c));
-        conns.CollectionChanged += OnConnectionsChanged;
+        var channels = AppState.Instance.Config.Channels;
+        foreach (var c in channels) Children.Add(new ChannelNode(c, select));
+        channels.CollectionChanged += OnChannelsChanged;
     }
 
-    public ObservableCollection<ConnectionConfig> Connections => App.Config.Connections;
+    public ObservableCollection<ChannelConfig> Channels => App.Config.Channels;
 
-    [ObservableProperty] private ConnectionConfig? _selected;
+    [ObservableProperty] private ChannelConfig? _selected;
 
-    private void OnConnectionsChanged(object? s, NotifyCollectionChangedEventArgs e)
+    private void OnChannelsChanged(object? s, NotifyCollectionChangedEventArgs e)
     {
         if (e.OldItems is not null)
-            foreach (ConnectionConfig c in e.OldItems)
-                if (Children.OfType<ConnectionNode>().FirstOrDefault(n => n.Config == c) is { } gone)
+            foreach (ChannelConfig c in e.OldItems)
+                if (NodeFor(c) is { } gone)
                 {
                     gone.Detach();
                     Children.Remove(gone);
                 }
         if (e.NewItems is not null)
-            foreach (ConnectionConfig c in e.NewItems) Children.Add(new ConnectionNode(c));
+            foreach (ChannelConfig c in e.NewItems) Children.Add(new ChannelNode(c, _select));
     }
 
-    public void Open(ConnectionConfig? config)
+    public void Open(ChannelConfig? config)
     {
-        if (config is null) return;
-        if (Children.OfType<ConnectionNode>().FirstOrDefault(n => n.Config == config) is { } node) _select(node);
+        if (config is not null && NodeFor(config) is { } node) _select(node);
     }
 
-    public ConnectionNode? NodeFor(ConnectionConfig c) => Children.OfType<ConnectionNode>().FirstOrDefault(n => n.Config == c);
+    public ChannelNode? NodeFor(ChannelConfig c) => Children.OfType<ChannelNode>().FirstOrDefault(n => n.Config == c);
 }
 
-public sealed partial class ConnectionNode : NavNode
+public sealed partial class ChannelNode : NavNode
 {
-    private ConnectionRuntime? _runtime;
+    private readonly Action<NavNode> _select;
 
-    public ConnectionNode(ConnectionConfig config) : base(config.Name, Res("ServerIcon"))
+    public ChannelNode(ChannelConfig config, Action<NavNode> select) : base(config.Name, Res("ServerIcon"))
     {
+        _select = select;
         Config = config;
         config.PropertyChanged += OnConfigChanged;
+        config.Devices.CollectionChanged += OnDevicesChanged;
+        App.RuntimeSynced += RefreshState;
+
+        foreach (var d in config.Devices) AddDeviceNode(d);
+        RebuildSettings();
+        RefreshState();
+    }
+
+    public ChannelConfig Config { get; }
+    public override bool ShowStateDot => true;
+
+    public ObservableCollection<SettingItem> Settings { get; } = new();
+    public IReadOnlyList<DriverType> DriverTypes { get; } = Enum.GetValues<DriverType>();
+
+    [ObservableProperty] private string _stateText = "Stopped";
+    [ObservableProperty] private DeviceConfig? _selectedDevice;
+    [ObservableProperty] private string _deviceHint = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddDeviceCommand))]
+    private bool _canAddDevice = true;
+
+    public IEnumerable<DeviceNode> DeviceNodes => Children.OfType<DeviceNode>();
+    public DeviceNode? NodeFor(DeviceConfig d) => DeviceNodes.FirstOrDefault(n => n.Config == d);
+
+    public void Detach()
+    {
+        Config.PropertyChanged -= OnConfigChanged;
+        Config.Devices.CollectionChanged -= OnDevicesChanged;
+        App.RuntimeSynced -= RefreshState;
+        foreach (var d in DeviceNodes) d.Detach();
+    }
+
+    private void AddDeviceNode(DeviceConfig d)
+    {
+        var node = new DeviceNode(Config, d);
+        node.PropertyChanged += OnDeviceNodeChanged;
+        Children.Add(node);
+    }
+
+    private void OnDevicesChanged(object? s, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
+            foreach (DeviceConfig d in e.OldItems)
+                if (NodeFor(d) is { } gone)
+                {
+                    gone.PropertyChanged -= OnDeviceNodeChanged;
+                    gone.Detach();
+                    Children.Remove(gone);
+                }
+        if (e.NewItems is not null)
+            foreach (DeviceConfig d in e.NewItems) AddDeviceNode(d);
+        UpdateCanAdd();
+        RefreshState();
+    }
+
+    private void OnDeviceNodeChanged(object? s, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DeviceNode.RuntimeState)) RefreshState();
+    }
+
+    private void OnConfigChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(ChannelConfig.Name): Title = Config.Name; break;
+            case nameof(ChannelConfig.DriverType):
+                // Settings of the old driver are meaningless for the new one, on the channel and on its devices.
+                Config.Settings.Clear();
+                foreach (var d in Config.Devices) d.Settings.Clear();
+                RebuildSettings();
+                break;
+            case nameof(ChannelConfig.Enabled): RefreshState(); break;
+        }
+    }
+
+    private void RebuildSettings()
+    {
+        Settings.Clear();
+        var info = DriverCatalog.Get(Config.DriverType);
+        foreach (var d in info.ChannelSettings) Settings.Add(new SettingItem(Config.Settings, d));
+        DeviceHint = info.MaxDevices == 1
+            ? "This driver reads a continuous stream, so a channel holds exactly one device."
+            : info.Type is DriverType.ModbusRtu or DriverType.Rs232Poll
+                ? "Devices on this channel share the serial bus (multi-drop)."
+                : "";
+        UpdateCanAdd();
+    }
+
+    private void UpdateCanAdd()
+    {
+        var max = DriverCatalog.Get(Config.DriverType).MaxDevices;
+        CanAddDevice = max == 0 || Config.Devices.Count < max;
+    }
+
+    /// <summary>Channel state is the worst of its devices' states.</summary>
+    private void RefreshState()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var states = DeviceNodes.Where(d => d.Config.Enabled).Select(d => d.RuntimeState).ToList();
+            ConnectionState? state =
+                states.Count == 0 || states.All(s => s is null) ? null
+                : states.Any(s => s == ConnectionState.Faulted) ? ConnectionState.Faulted
+                : states.Any(s => s == ConnectionState.Connecting) ? ConnectionState.Connecting
+                : states.All(s => s == ConnectionState.Connected) ? ConnectionState.Connected
+                : ConnectionState.Stopped;
+
+            StateText = !Config.Enabled ? "Disabled" : state?.ToString() ?? "Stopped";
+            StateBrush = BrushFor(state, Config.Enabled);
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanAddDevice))]
+    private void AddDevice()
+    {
+        var n = Config.Devices.Count + 1;
+        while (Config.Devices.Any(d => d.Name == $"Device{n}")) n++;
+        var device = new DeviceConfig { Name = $"Device{n}" };
+        Config.Devices.Add(device);
+        if (NodeFor(device) is { } node) _select(node);
+    }
+
+    public void Open(DeviceConfig? device)
+    {
+        if (device is not null && NodeFor(device) is { } node) _select(node);
+    }
+}
+
+public sealed partial class DeviceNode : NavNode
+{
+    private readonly ChannelConfig _channel;
+    private ConnectionRuntime? _runtime;
+
+    public DeviceNode(ChannelConfig channel, DeviceConfig device) : base(device.Name, Res("TableIcon"))
+    {
+        _channel = channel;
+        Config = device;
+        device.PropertyChanged += OnConfigChanged;
+        channel.PropertyChanged += OnChannelChanged;
         App.RuntimeSynced += RefreshState;
         RebuildSettings();
         RefreshState();
     }
 
-    public ConnectionConfig Config { get; }
+    public DeviceConfig Config { get; }
+    public string ChannelName => _channel.Name;
     public override bool ShowStateDot => true;
 
     public ObservableCollection<SettingItem> Settings { get; } = new();
-    public IReadOnlyList<DriverType> DriverTypes { get; } = Enum.GetValues<DriverType>();
     public IReadOnlyList<TagDataType> DataTypes { get; } = Enum.GetValues<TagDataType>();
     public IReadOnlyList<TagAccess> Accesses { get; } = Enum.GetValues<TagAccess>();
 
     [ObservableProperty] private string _addressHint = "";
     [ObservableProperty] private string _stateText = "Stopped";
+    [ObservableProperty] private ConnectionState? _runtimeState;
+    [ObservableProperty] private bool _hasSettings;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveTagCommand))]
@@ -134,54 +287,50 @@ public sealed partial class ConnectionNode : NavNode
     public void Detach()
     {
         Config.PropertyChanged -= OnConfigChanged;
+        _channel.PropertyChanged -= OnChannelChanged;
         App.RuntimeSynced -= RefreshState;
         if (_runtime is not null) _runtime.PropertyChanged -= OnRuntimeChanged;
     }
 
     private void OnConfigChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ConnectionConfig.Name)) Title = Config.Name;
-        else if (e.PropertyName == nameof(ConnectionConfig.DriverType))
-        {
-            Config.Settings.Clear();
-            RebuildSettings();
-        }
-        else if (e.PropertyName == nameof(ConnectionConfig.Enabled)) RefreshState();
+        if (e.PropertyName == nameof(DeviceConfig.Name)) Title = Config.Name;
+        else if (e.PropertyName == nameof(DeviceConfig.Enabled)) RefreshState();
+    }
+
+    private void OnChannelChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ChannelConfig.DriverType)) RebuildSettings();
+        else if (e.PropertyName == nameof(ChannelConfig.Name)) OnPropertyChanged(nameof(ChannelName));
     }
 
     private void RebuildSettings()
     {
         Settings.Clear();
-        var info = DriverCatalog.Get(Config.DriverType);
+        var info = DriverCatalog.Get(_channel.DriverType);
         AddressHint = info.AddressHint;
-        foreach (var d in info.Settings) Settings.Add(new SettingItem(Config, d));
+        foreach (var d in info.DeviceSettings) Settings.Add(new SettingItem(Config.Settings, d));
+        HasSettings = Settings.Count > 0;
     }
 
     private void RefreshState()
     {
         if (_runtime is not null) _runtime.PropertyChanged -= OnRuntimeChanged;
-        _runtime = App.RunningConnections.FirstOrDefault(r => r.Config == Config);
+        _runtime = App.RunningConnections.FirstOrDefault(r =>
+            r.Config.ChannelName == _channel.Name && r.Config.DeviceName == Config.Name);
         if (_runtime is not null) _runtime.PropertyChanged += OnRuntimeChanged;
-        OnRuntimeChanged(null, null!);
+        OnRuntimeChanged(null, null);
     }
 
-    private void OnRuntimeChanged(object? s, PropertyChangedEventArgs? e)
+    private void OnRuntimeChanged(object? s, PropertyChangedEventArgs? e) => Dispatcher.UIThread.Post(() =>
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            var state = _runtime?.State;
-            StateText = !Config.Enabled ? "Disabled"
-                : state is null ? "Stopped"
-                : string.IsNullOrEmpty(_runtime!.Message) ? state.ToString()! : $"{state}: {_runtime.Message}";
-            StateBrush = !Config.Enabled ? Brushes.LightGray : state switch
-            {
-                ConnectionState.Connected => Brushes.SeaGreen,
-                ConnectionState.Connecting => Brushes.Goldenrod,
-                ConnectionState.Faulted => Brushes.Firebrick,
-                _ => Brushes.Gray,
-            };
-        });
-    }
+        var enabled = Config.Enabled && _channel.Enabled;
+        RuntimeState = _runtime?.State;
+        StateText = !enabled ? "Disabled"
+            : _runtime is null ? "Stopped"
+            : string.IsNullOrEmpty(_runtime.Message) ? _runtime.State.ToString() : $"{_runtime.State}: {_runtime.Message}";
+        StateBrush = BrushFor(_runtime?.State, enabled);
+    });
 
     [RelayCommand]
     private void AddTag()

@@ -29,11 +29,16 @@ public sealed class RizzNodeManager : CustomNodeManager2
             refs.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, root.NodeId));
             AddPredefinedNode(SystemContext, root);
 
-            foreach (var group in _engine.Tags.GroupBy(t => t.Connection))
+            // Objects/RizzServer/<Channel>/<Device>/<Tag>; NodeIds are "Channel", "Channel.Device", "Channel.Device.Tag".
+            foreach (var channel in _engine.Tags.GroupBy(t => t.ChannelName))
             {
-                var folder = CreateFolder(root, group.Key.Name, group.Key.Name);
-                foreach (var tag in group)
-                    _nodes[tag] = CreateVariable(folder, tag);
+                var channelFolder = CreateFolder(root, channel.Key, channel.Key);
+                foreach (var device in channel.GroupBy(t => t.DeviceName))
+                {
+                    var deviceFolder = CreateFolder(channelFolder, $"{channel.Key}.{device.Key}", device.Key);
+                    foreach (var tag in device)
+                        _nodes[tag] = CreateVariable(deviceFolder, tag);
+                }
             }
         }
 
@@ -60,7 +65,11 @@ public sealed class RizzNodeManager : CustomNodeManager2
             UserWriteMask = AttributeWriteMask.None,
             EventNotifier = EventNotifiers.None,
         };
-        parent?.AddChild(folder);
+        if (parent is not null)
+        {
+            parent.AddChild(folder);
+            AddPredefinedNode(SystemContext, folder); // register so the folder is browsable
+        }
         return folder;
     }
 

@@ -15,7 +15,10 @@ public sealed partial class ModbusDriver : DriverBase
     private readonly SemaphoreSlim _io = new(1, 1);
     private IModbusMaster? _master;
     private TcpClient? _tcp;
-    private SerialPort? _port;
+    private SerialPortLease? _lease;
+
+    /// <summary>RTU devices share the bus lock of their serial port; TCP devices use their own.</summary>
+    private SemaphoreSlim Io => _lease?.Lock ?? _io;
 
     public ModbusDriver(ConnectionConfig config, ILogger log, bool rtu) : base(config, log) => _rtu = rtu;
 
@@ -38,11 +41,12 @@ public sealed partial class ModbusDriver : DriverBase
         var factory = new ModbusFactory();
         if (_rtu)
         {
-            _port = new SerialPort(Config.Setting("PortName", "COM1"), Config.SettingInt("BaudRate", 9600),
-                Enum.Parse<Parity>(Config.Setting("Parity", "None")), Config.SettingInt("DataBits", 8),
-                Enum.Parse<StopBits>(Config.Setting("StopBits", "One")));
-            _port.Open();
-            _master = factory.CreateRtuMaster(new SerialPortAdapter(_port));
+            _lease = SerialPortHub.Acquire(Config, exclusive: false, p =>
+            {
+                p.ReadTimeout = timeout;
+                p.WriteTimeout = timeout;
+            });
+            _master = factory.CreateRtuMaster(new SerialPortAdapter(_lease.Port));
         }
         else
         {
@@ -70,14 +74,15 @@ public sealed partial class ModbusDriver : DriverBase
         _master = null;
         _tcp?.Dispose();
         _tcp = null;
-        _port?.Dispose();
-        _port = null;
+        _lease?.Dispose();
+        _lease = null;
         return Task.CompletedTask;
     }
 
     protected override async Task PollAsync(CancellationToken ct)
     {
-        await _io.WaitAsync(ct);
+        var io = Io;
+        await io.WaitAsync(ct);
         try
         {
             foreach (var tag in Tags)
@@ -100,7 +105,7 @@ public sealed partial class ModbusDriver : DriverBase
                 }
             }
         }
-        finally { _io.Release(); }
+        finally { io.Release(); }
     }
 
     private async Task<object?> ReadTagAsync(TagConfig tag)
@@ -170,7 +175,8 @@ public sealed partial class ModbusDriver : DriverBase
     {
         var master = _master ?? throw new InvalidOperationException("Not connected.");
         var (area, offset) = ParseAddress(tag.Address);
-        await _io.WaitAsync(ct);
+        var io = Io;
+        await io.WaitAsync(ct);
         try
         {
             switch (area)
@@ -187,6 +193,6 @@ public sealed partial class ModbusDriver : DriverBase
                     throw new InvalidOperationException($"Area {area} is read-only.");
             }
         }
-        finally { _io.Release(); }
+        finally { io.Release(); }
     }
 }

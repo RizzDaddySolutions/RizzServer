@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RizzServer.App.Views.ChannelView">
+  <Grid RowDefinitions="Auto,Auto,Auto,*" IsEnabled="{Binding App.IsEditable}">
+
+    <Border Grid.Row="0" Classes="section">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock>
+          <Run Text="Channel Properties — " /><Run Text="{Binding Title}" />
+        </TextBlock>
+        <TextBlock Grid.Column="1" Text="{Binding StateText}" />
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Row="1" MaxHeight="330" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <Grid ColumnDefinitions="220,*">
+          <Border Classes="prop-label"><TextBlock Text="Name" /></Border>
+          <Border Grid.Column="1" Classes="prop-value"><TextBox Text="{Binding Config.Name}" /></Border>
+        </Grid>
+        <Grid ColumnDefinitions="220,*">
+          <Border Classes="prop-label"><TextBlock Text="Driver" /></Border>
+          <Border Grid.Column="1" Classes="prop-value">
+            <ComboBox ItemsSource="{Binding DriverTypes}" SelectedItem="{Binding Config.DriverType}" />
+          </Border>
+        </Grid>
+        <Grid ColumnDefinitions="220,*">
+          <Border Classes="prop-label"><TextBlock Text="Enabled" /></Border>
+          <Border Grid.Column="1" Classes="prop-value"><CheckBox IsChecked="{Binding Config.Enabled}" VerticalAlignment="Center" /></Border>
+        </Grid>
+
+        <Border Classes="section"><TextBlock Text="Communications" /></Border>
+        <ItemsControl ItemsSource="{Binding Settings}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="220,*">
+                <Border Classes="prop-label"><TextBlock Text="{Binding Label}" /></Border>
+                <Border Grid.Column="1" Classes="prop-value">
+                  <Panel>
+                    <TextBox Text="{Binding Value}" PasswordChar="{Binding PasswordChar}" IsVisible="{Binding IsFreeText}" />
+                    <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" IsVisible="{Binding HasOptions}" />
+                  </Panel>
+                </Border>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Border Grid.Row="2" Classes="section">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Text="Devices" VerticalAlignment="Center" Margin="0,0,16,0" />
+        <TextBlock Grid.Column="1" Text="{Binding DeviceHint}" TextTrimming="CharacterEllipsis"
+                   Foreground="{StaticResource MutedBrush}" FontWeight="Normal" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Classes="tool" Command="{Binding AddDeviceCommand}" ToolTip.Tip="New device on this channel">
+          <StackPanel Orientation="Horizontal" Spacing="4"><Path Data="{StaticResource PlusIcon}" /><TextBlock Text="New Device" /></StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <DataGrid Grid.Row="3" ItemsSource="{Binding Config.Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0"
+              DoubleTapped="OnDeviceDoubleTapped">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Device name" Binding="{Binding Name}" Width="200" />
+        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="90" />
+        <DataGridTextColumn Header="Scan rate (ms)" Binding="{Binding ScanRateMs}" Width="130" />
+        <DataGridTextColumn Header="Tags" Binding="{Binding Tags.Count}" Width="*" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </Grid>
+</UserControl>

@@ -21,12 +21,60 @@ public partial class TagConfig : ObservableObject
     [ObservableProperty] private TagAccess _access = TagAccess.ReadOnly;
 }
 
+/// <summary>One device on a channel: its own address/protocol settings, scan rate and tags.</summary>
+public partial class DeviceConfig : ObservableObject
+{
+    [ObservableProperty] private string _name = "Device1";
+    [ObservableProperty] private bool _enabled = true;
+    [ObservableProperty] private int _scanRateMs = 1000;
+
+    /// <summary>Device-scoped driver settings (see <see cref="SettingScope.Device"/>).</summary>
+    public Dictionary<string, string> Settings { get; set; } = new();
+    public ObservableCollection<TagConfig> Tags { get; set; } = new();
+}
+
+/// <summary>A communication link (driver + shared settings such as the COM port) holding one or more devices.</summary>
+public partial class ChannelConfig : ObservableObject
+{
+    [ObservableProperty] private string _name = "Channel1";
+    [ObservableProperty] private DriverType _driverType = DriverType.ModbusTcp;
+    [ObservableProperty] private bool _enabled = true;
+
+    /// <summary>Channel-scoped driver settings (see <see cref="SettingScope.Channel"/>).</summary>
+    public Dictionary<string, string> Settings { get; set; } = new();
+    public ObservableCollection<DeviceConfig> Devices { get; set; } = new();
+
+    /// <summary>Merges channel and device settings into the configuration a driver instance runs on.</summary>
+    public ConnectionConfig Flatten(DeviceConfig device)
+    {
+        var merged = new Dictionary<string, string>(Settings);
+        foreach (var (k, v) in device.Settings) merged[k] = v;
+        return new ConnectionConfig
+        {
+            Name = $"{Name}.{device.Name}",
+            ChannelName = Name,
+            DeviceName = device.Name,
+            DriverType = DriverType,
+            PollIntervalMs = device.ScanRateMs,
+            Settings = merged,
+            Tags = device.Tags,
+        };
+    }
+}
+
+/// <summary>
+/// Effective, runtime-only configuration of one device (channel + device settings merged).
+/// This is what drivers receive; it is never saved.
+/// </summary>
 public partial class ConnectionConfig : ObservableObject
 {
     [ObservableProperty] private string _name = "Connection1";
     [ObservableProperty] private DriverType _driverType = DriverType.ModbusTcp;
     [ObservableProperty] private bool _enabled = true;
     [ObservableProperty] private int _pollIntervalMs = 1000;
+
+    public string ChannelName { get; set; } = "";
+    public string DeviceName { get; set; } = "";
 
     public Dictionary<string, string> Settings { get; set; } = new();
     public ObservableCollection<TagConfig> Tags { get; set; } = new();
@@ -64,7 +112,7 @@ public class UserAccount
 public class GatewayConfig
 {
     public ServerSettings Server { get; set; } = new();
-    public ObservableCollection<ConnectionConfig> Connections { get; set; } = new();
+    public ObservableCollection<ChannelConfig> Channels { get; set; } = new();
 }
 
 /// <summary>Live state of one connection.</summary>
@@ -88,7 +136,9 @@ public partial class TagRuntime : ObservableObject
 
     public ConnectionConfig Connection { get; }
     public TagConfig Config { get; }
-    public string NodePath => $"{Connection.Name}.{Config.Name}";
+    public string ChannelName => Connection.ChannelName;
+    public string DeviceName => Connection.DeviceName;
+    public string NodePath => $"{ChannelName}.{DeviceName}.{Config.Name}";
 
     [ObservableProperty] private object? _value;
     [ObservableProperty] private TagQuality _quality = TagQuality.Bad;

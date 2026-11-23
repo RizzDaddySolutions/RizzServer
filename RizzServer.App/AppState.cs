@@ -53,7 +53,8 @@ public sealed partial class AppState : ObservableObject
         Engine = new GatewayEngine(Config, new DriverFactory(_loggers), _loggers.CreateLogger("Engine"));
         Host = new OpcUaHost(Engine, _loggers.CreateLogger("OPC UA"));
         Engine.RuntimeRebuilt += () => Dispatcher.UIThread.Invoke(SyncRuntime);
-        _log.LogInformation("Loaded {Count} connection(s) from {Path}", Config.Connections.Count, ConfigStore.ConfigPath);
+        _log.LogInformation("Loaded {Channels} channel(s), {Devices} device(s) from {Path}",
+            Config.Channels.Count, Config.Channels.Sum(c => c.Devices.Count), ConfigStore.ConfigPath);
     }
 
     private void SyncRuntime()

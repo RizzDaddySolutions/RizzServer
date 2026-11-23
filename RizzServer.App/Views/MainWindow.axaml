@@ -13,7 +13,8 @@
   <Window.DataTemplates>
     <DataTemplate DataType="vm:ProjectNode"><v:ProjectView /></DataTemplate>
     <DataTemplate DataType="vm:ConnectivityNode"><v:ConnectivityView /></DataTemplate>
-    <DataTemplate DataType="vm:ConnectionNode"><v:ConnectionView /></DataTemplate>
+    <DataTemplate DataType="vm:ChannelNode"><v:ChannelView /></DataTemplate>
+    <DataTemplate DataType="vm:DeviceNode"><v:DeviceView /></DataTemplate>
     <DataTemplate DataType="vm:ServerNode"><v:ServerView /></DataTemplate>
     <DataTemplate DataType="vm:QuickClientNode"><v:QuickClientView /></DataTemplate>
   </Window.DataTemplates>
@@ -27,10 +28,11 @@
         <MenuItem Header="E_xit" Command="{Binding ExitAppCommand}" />
       </MenuItem>
       <MenuItem Header="_Edit">
-        <MenuItem Header="New _Channel" Command="{Binding AddConnectionCommand}" />
+        <MenuItem Header="New _Channel" Command="{Binding AddChannelCommand}" />
+        <MenuItem Header="New _Device" Command="{Binding AddDeviceCommand}" />
         <MenuItem Header="New _Tag" Command="{Binding AddTagCommand}" />
         <Separator />
-        <MenuItem Header="_Delete Channel" Command="{Binding DeleteConnectionCommand}" />
+        <MenuItem Header="_Delete Selected" Command="{Binding DeleteCommand}" />
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="_Event Log" Command="{Binding ToggleLogCommand}" />
@@ -52,17 +54,22 @@
           <Path Data="{StaticResource SaveIcon}" />
         </Button>
         <Border Width="1" Margin="4,2" Background="{StaticResource LineBrush}" />
-        <Button Classes="tool" Command="{Binding AddConnectionCommand}" ToolTip.Tip="New channel">
+        <Button Classes="tool" Command="{Binding AddChannelCommand}" ToolTip.Tip="New channel">
           <StackPanel Orientation="Horizontal" Spacing="4">
             <Path Data="{StaticResource PlusIcon}" /><TextBlock Text="Channel" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
-        <Button Classes="tool" Command="{Binding AddTagCommand}" ToolTip.Tip="New tag in selected channel">
+        <Button Classes="tool" Command="{Binding AddDeviceCommand}" ToolTip.Tip="New device on the selected channel">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <Path Data="{StaticResource PlusIcon}" /><TextBlock Text="Device" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button Classes="tool" Command="{Binding AddTagCommand}" ToolTip.Tip="New tag on the selected device">
           <StackPanel Orientation="Horizontal" Spacing="4">
             <Path Data="{StaticResource PlusIcon}" /><TextBlock Text="Tag" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
-        <Button Classes="tool" Command="{Binding DeleteConnectionCommand}" ToolTip.Tip="Delete selected channel">
+        <Button Classes="tool" Command="{Binding DeleteCommand}" ToolTip.Tip="Delete selected channel or device">
           <Path Data="{StaticResource CrossIcon}" />
         </Button>
         <Border Width="1" Margin="4,2" Background="{StaticResource LineBrush}" />

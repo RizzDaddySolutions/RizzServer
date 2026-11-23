@@ -17,8 +17,17 @@ A cross-platform (Windows, Linux, macOS) OPC UA server with an Avalonia desktop 
 
 - `RizzServer.Core` – config models, `GatewayEngine` (drivers → live tag table), driver catalog
 - `RizzServer.Drivers` – protocol drivers; each derives from `DriverBase` (connect/poll/auto-reconnect)
-- `RizzServer.Server` – OPC UA endpoint (OPC Foundation stack); address space is `Objects/RizzServer/<Channel>/<Tag>`
-- `RizzServer.App` – Avalonia app. Project tree (Connectivity ▸ channels, OPC UA Server, Quick Client), property-grid editors, tag grid, event log, Start/Stop Runtime in the toolbar
+- `RizzServer.Server` – OPC UA endpoint (OPC Foundation stack); address space is `Objects/RizzServer/<Channel>/<Device>/<Tag>` (NodeIds `ns=2;s=Channel.Device.Tag`)
+- `RizzServer.App` – Avalonia app. Project tree (Connectivity ▸ channels ▸ devices, OPC UA Server, Quick Client), property-grid editors, tag grid, event log, Start/Stop Runtime in the toolbar
+
+## Channels, devices and tags
+
+As in Kepware: a **channel** is the communication link (driver plus shared settings such as the COM port, broker or endpoint), a **device** is one endpoint on it (Modbus unit ID, scan rate, protocol framing) and holds the **tags**.
+
+- Modbus RTU and RS-232 command/response channels are multi-drop: several devices share the serial port, with exchanges serialised on the bus.
+- RS-232 text and binary-frame drivers read a continuous stream, so those channels hold exactly one device.
+- MQTT, OPC UA client and OPC DA open one connection per device (MQTT client IDs get the device name appended).
+- Configs saved by the earlier single-level version are migrated automatically: each old connection becomes a channel with one device named `Device1`, so tag NodeIds gain a `Device1` level.
 
 Writable tags push OPC UA writes back to the device through the owning driver.
 

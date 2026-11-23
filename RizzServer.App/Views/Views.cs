@@ -17,13 +17,24 @@ public partial class ConnectivityView : UserControl
     private void OnRowDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (DataContext is ConnectivityNode node && sender is DataGrid grid)
-            node.Open(grid.SelectedItem as ConnectionConfig);
+            node.Open(grid.SelectedItem as ChannelConfig);
     }
 }
 
-public partial class ConnectionView : UserControl
+public partial class ChannelView : UserControl
 {
-    public ConnectionView() => InitializeComponent();
+    public ChannelView() => InitializeComponent();
+
+    private void OnDeviceDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (DataContext is ChannelNode node && sender is DataGrid grid)
+            node.Open(grid.SelectedItem as DeviceConfig);
+    }
+}
+
+public partial class DeviceView : UserControl
+{
+    public DeviceView() => InitializeComponent();
 }
 
 public partial class ServerView : UserControl

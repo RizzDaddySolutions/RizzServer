@@ -30,5 +30,6 @@ internal sealed class SerialPortAdapter : IStreamResource
 
     public void Write(byte[] buffer, int offset, int count) => _port.Write(buffer, offset, count);
 
-    public void Dispose() => _port.Dispose();
+    /// <summary>No-op: the <see cref="SerialPortHub"/> owns the port so other devices on the bus keep working.</summary>
+    public void Dispose() { }
 }

@@ -34,8 +34,10 @@ public sealed class GatewayEngine
         var tags = new List<TagRuntime>();
         _tagMap.Clear();
 
-        foreach (var c in Config.Connections.Where(c => c.Enabled))
+        foreach (var channel in Config.Channels.Where(c => c.Enabled))
+        foreach (var device in channel.Devices.Where(d => d.Enabled))
         {
+            var c = channel.Flatten(device);
             conns.Add(new ConnectionRuntime(c));
             foreach (var t in c.Tags)
             {
