@@ -26,6 +26,7 @@ public interface INavHost
     Task NewChannelAsync();
     Task NewDeviceAsync(ChannelNode channel);
     Task DeleteNodeAsync(NavNode node);
+    Task RenameNodeAsync(NavNode node);
     void DuplicateChannel(ChannelNode channel);
     void DuplicateDevice(DeviceNode device);
 }

@@ -68,6 +68,7 @@
           <MenuItem Header="Open" Command="{Binding OpenSelectedDeviceCommand}" />
           <MenuItem Header="-" />
           <MenuItem Header="New Device…" Command="{Binding AddDeviceCommand}" />
+          <MenuItem Header="Rename…" Command="{Binding RenameSelectedDeviceCommand}" />
           <MenuItem Header="Duplicate Device" Command="{Binding DuplicateSelectedDeviceCommand}" />
           <MenuItem Header="-" />
           <MenuItem Header="Delete Device" Command="{Binding DeleteSelectedDeviceCommand}" />

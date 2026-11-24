@@ -14,6 +14,7 @@
           <MenuItem Header="Open" Command="{Binding OpenSelectedCommand}" />
           <MenuItem Header="-" />
           <MenuItem Header="New Channel…" Command="{Binding NewChannelCommand}" />
+          <MenuItem Header="Rename…" Command="{Binding RenameSelectedCommand}" />
           <MenuItem Header="Duplicate Channel" Command="{Binding DuplicateSelectedCommand}" />
           <MenuItem Header="-" />
           <MenuItem Header="Delete Channel" Command="{Binding DeleteSelectedCommand}" />

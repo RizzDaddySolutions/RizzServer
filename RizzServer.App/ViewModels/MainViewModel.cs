@@ -83,6 +83,7 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
         AddDeviceCommand.NotifyCanExecuteChanged();
         AddTagCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
+        RenameCommand.NotifyCanExecuteChanged();
         ImportTagsCommand.NotifyCanExecuteChanged();
         ExportTagsCommand.NotifyCanExecuteChanged();
     }
@@ -161,6 +162,31 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
         if (channel.NodeFor(clone) is { } node) SelectedNode = node;
     }
 
+    /// <summary>Asks for a new name; returns null if cancelled. Set by the window.</summary>
+    public Func<string, string, string, Func<string, string?>, Task<string?>>? Prompt { get; set; }
+
+    public async Task RenameNodeAsync(NavNode node)
+    {
+        if (!App.IsEditable || Prompt is null) return;
+        switch (node)
+        {
+            case ChannelNode channel:
+            {
+                var name = await Prompt("Rename Channel", "Channel name:", channel.Config.Name,
+                    v => NameRules.Validate(v, "channel", App.Config.Channels.Where(c => c != channel.Config).Select(c => c.Name)));
+                if (name is not null) channel.Config.Name = name;
+                break;
+            }
+            case DeviceNode device when ChannelOf(device) is { } owner:
+            {
+                var name = await Prompt("Rename Device", "Device name:", device.Config.Name,
+                    v => NameRules.Validate(v, "device", owner.Config.Devices.Where(d => d != device.Config).Select(d => d.Name)));
+                if (name is not null) device.Config.Name = name;
+                break;
+            }
+        }
+    }
+
     public async Task DeleteNodeAsync(NavNode node)
     {
         if (!App.IsEditable) return;
@@ -187,6 +213,9 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
 
     [RelayCommand(CanExecute = nameof(CanAddTag))]
     private void AddTag() => CurrentDevice?.AddTagCommand.Execute(null);
+
+    [RelayCommand(CanExecute = nameof(CanDelete))]
+    private Task RenameAsync() => SelectedNode is { } node ? RenameNodeAsync(node) : Task.CompletedTask;
 
     [RelayCommand(CanExecute = nameof(CanDelete))]
     private Task DeleteAsync() => SelectedNode is { } node ? DeleteNodeAsync(node) : Task.CompletedTask;

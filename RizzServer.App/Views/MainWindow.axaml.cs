@@ -75,6 +75,7 @@ public partial class MainWindow : Window
             if (e.PropertyName == nameof(MainViewModel.LogVisible)) ApplyLogVisibility(vm.LogVisible);
         };
         vm.Confirm = text => Dialogs.ConfirmAsync(this, text);
+        vm.Prompt = (title, prompt, initial, validate) => Dialogs.PromptAsync(this, title, prompt, initial, validate);
         vm.ShowAbout = () => new AboutWindow().ShowDialog(this);
         vm.ShowWizard = wizard => WizardWindow.RunAsync(this, wizard);
 
@@ -110,8 +111,50 @@ public partial class MainWindow : Window
     }
 }
 
-internal static class Dialogs
+public static class Dialogs
 {
+    /// <summary>Single-line text prompt. OK is rejected (with the message shown) until <paramref name="validate"/> returns null.</summary>
+    public static async Task<string?> PromptAsync(Window owner, string title, string prompt, string initial, Func<string, string?> validate)
+    {
+        string? result = null;
+        var dlg = Build(title, prompt, owner, out var buttons);
+        var box = new TextBox { Text = initial, MinWidth = 340, Name = "PromptBox" };
+        var error = new TextBlock
+        {
+            Foreground = Avalonia.Media.Brushes.IndianRed,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            MaxWidth = 380,
+            IsVisible = false,
+            Name = "PromptError",
+        };
+        var panel = (StackPanel)dlg.Content!;
+        panel.Children.Insert(1, box);
+        panel.Children.Insert(2, error);
+
+        var ok = new Button { Content = "OK", MinWidth = 80, IsDefault = true, Name = "PromptOk" };
+        var cancel = new Button { Content = "Cancel", MinWidth = 80, IsCancel = true, Name = "PromptCancel" };
+        ok.Click += (_, _) =>
+        {
+            var text = (box.Text ?? "").Trim();
+            if (validate(text) is { } message)
+            {
+                error.Text = message;
+                error.IsVisible = true;
+                box.Focus();
+                return;
+            }
+            result = text;
+            dlg.Close();
+        };
+        cancel.Click += (_, _) => dlg.Close();
+        buttons.Children.Add(ok);
+        buttons.Children.Add(cancel);
+        dlg.Opened += (_, _) => { box.Focus(); box.SelectAll(); };
+
+        await dlg.ShowDialog(owner);
+        return result;
+    }
+
     public static async Task<bool> ConfirmAsync(Window owner, string text)
     {
         var result = false;

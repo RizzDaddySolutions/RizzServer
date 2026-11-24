@@ -26,16 +26,8 @@ public abstract partial class WizardStep : ObservableObject
     /// <summary>Called each time the page is shown.</summary>
     public virtual void OnEnter() { }
 
-    /// <summary>Names become part of OPC UA NodeIds (Channel.Device.Tag), so '.' is not allowed.</summary>
-    protected static string? ValidateName(string name, string what, IEnumerable<string> existing)
-    {
-        name = name.Trim();
-        if (name.Length == 0) return $"Enter a {what} name.";
-        if (name.Contains('.')) return $"The {what} name cannot contain a period.";
-        if (existing.Any(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase)))
-            return $"A {what} named '{name}' already exists.";
-        return null;
-    }
+    protected static string? ValidateName(string name, string what, IEnumerable<string> existing) =>
+        NameRules.Validate(name, what, existing);
 }
 
 public sealed partial class ChannelNameStep : WizardStep

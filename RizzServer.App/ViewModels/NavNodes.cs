@@ -167,6 +167,7 @@ public sealed partial class ConnectivityNode : NavNode
         {
             if (e.PropertyName != nameof(AppState.IsEditable)) return;
             NewChannelCommand.NotifyCanExecuteChanged();
+            RenameSelectedCommand.NotifyCanExecuteChanged();
             DuplicateSelectedCommand.NotifyCanExecuteChanged();
             DeleteSelectedCommand.NotifyCanExecuteChanged();
         };
@@ -175,7 +176,7 @@ public sealed partial class ConnectivityNode : NavNode
     public ObservableCollection<ChannelConfig> Channels => App.Config.Channels;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(OpenSelectedCommand), nameof(DuplicateSelectedCommand), nameof(DeleteSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenSelectedCommand), nameof(RenameSelectedCommand), nameof(DuplicateSelectedCommand), nameof(DeleteSelectedCommand))]
     private ChannelConfig? _selected;
 
     protected override IEnumerable<MenuEntry> CreateMenu()
@@ -191,6 +192,10 @@ public sealed partial class ConnectivityNode : NavNode
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void OpenSelected() => Open(Selected);
+
+    [RelayCommand(CanExecute = nameof(CanChangeSelection))]
+    private Task RenameSelectedAsync() =>
+        Selected is not null && NodeFor(Selected) is { } node && Host is not null ? Host.RenameNodeAsync(node) : Task.CompletedTask;
 
     [RelayCommand(CanExecute = nameof(CanChangeSelection))]
     private void DuplicateSelected()
@@ -250,6 +255,7 @@ public sealed partial class ChannelNode : NavNode
         {
             if (e.PropertyName != nameof(AppState.IsEditable)) return;
             OpenSelectedDeviceCommand.NotifyCanExecuteChanged();
+            RenameSelectedDeviceCommand.NotifyCanExecuteChanged();
             DuplicateSelectedDeviceCommand.NotifyCanExecuteChanged();
             DeleteSelectedDeviceCommand.NotifyCanExecuteChanged();
         };
@@ -265,7 +271,7 @@ public sealed partial class ChannelNode : NavNode
     [ObservableProperty] private string _deviceHint = "";
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(OpenSelectedDeviceCommand), nameof(DuplicateSelectedDeviceCommand), nameof(DeleteSelectedDeviceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenSelectedDeviceCommand), nameof(RenameSelectedDeviceCommand), nameof(DuplicateSelectedDeviceCommand), nameof(DeleteSelectedDeviceCommand))]
     private DeviceConfig? _selectedDevice;
 
     [ObservableProperty]
@@ -293,6 +299,7 @@ public sealed partial class ChannelNode : NavNode
     {
         yield return ItemAsync("New Device…", () => Host?.NewDeviceAsync(this) ?? Task.CompletedTask, () => Editable && CanAddDevice);
         yield return Sep();
+        yield return ItemAsync("Rename…", () => Host?.RenameNodeAsync(this) ?? Task.CompletedTask, () => Editable);
         _toggleEntry = Item(ToggleHeader, () => Config.Enabled = !Config.Enabled, () => Editable);
         yield return _toggleEntry;
         yield return Item("Duplicate Channel", () => Host?.DuplicateChannel(this), () => Editable);
@@ -303,6 +310,10 @@ public sealed partial class ChannelNode : NavNode
     // Commands for the device list's right-click menu (they act on the selected row).
     [RelayCommand(CanExecute = nameof(HasSelectedDevice))]
     private void OpenSelectedDevice() => Open(SelectedDevice);
+
+    [RelayCommand(CanExecute = nameof(CanDeleteSelectedDevice))]
+    private Task RenameSelectedDeviceAsync() =>
+        SelectedDevice is not null && NodeFor(SelectedDevice) is { } node && Host is not null ? Host.RenameNodeAsync(node) : Task.CompletedTask;
 
     [RelayCommand(CanExecute = nameof(CanDuplicateSelectedDevice))]
     private void DuplicateSelectedDevice()
@@ -470,6 +481,7 @@ public sealed partial class DeviceNode : NavNode
         yield return ItemAsync("Import Tags from CSV…", () => ImportTagsCommand.ExecuteAsync(null), () => Editable);
         yield return ItemAsync("Export Tags to CSV…", () => ExportTagsCommand.ExecuteAsync(null));
         yield return Sep();
+        yield return ItemAsync("Rename…", () => Host?.RenameNodeAsync(this) ?? Task.CompletedTask, () => Editable);
         _toggleEntry = Item(ToggleHeader, () => Config.Enabled = !Config.Enabled, () => Editable);
         yield return _toggleEntry;
         yield return Item("Duplicate Device", () => Host?.DuplicateDevice(this), CanDuplicate);
