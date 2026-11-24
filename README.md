@@ -41,6 +41,38 @@ Configuration is stored in `%AppData%\RizzServer\config.json` (Windows) or `~/.c
 
 **View ▸ Theme: System / Light / Dark** switches the look; System follows the operating system and is the default. The window remembers its size, position and maximised state. Default endpoint: `opc.tcp://<host>:4840/RizzServer`.
 
+## Headless service and REST API
+
+`RizzServer.Service` runs the same runtime (drivers + OPC UA server) with no UI: as a console process, a Windows service, a systemd service or in Docker. It loads the project file, starts it, and exposes a REST API for configuration and monitoring.
+
+```powershell
+dotnet run --project RizzServer.Service                      # API on http://127.0.0.1:5080
+dotnet run --project RizzServer.Service -- --show-api-key    # print the API key (generated on first run)
+```
+
+```bash
+KEY=$(rizzserver-service --show-api-key)
+curl -H "Authorization: Bearer $KEY" http://127.0.0.1:5080/api/v1/runtime
+curl -H "Authorization: Bearer $KEY" http://127.0.0.1:5080/api/v1/tags
+curl -X PUT -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{"value": 42}' http://127.0.0.1:5080/api/v1/tags/Plant.PLC.Setpoint
+curl -N -H "Authorization: Bearer $KEY" "http://127.0.0.1:5080/api/v1/stream?snapshot=true"      # live changes (Server-Sent Events)
+```
+
+| Area | Endpoints (`/api/v1`) |
+|---|---|
+| Runtime | `GET /runtime`, `POST /runtime/start`, `/stop`, `/restart`, `GET /devices/status` |
+| Live data | `GET /tags[?channel=&device=&quality=]`, `GET /tags/{Channel.Device.Tag}`, `PUT /tags/{path}` (write), `GET /stream` (SSE) |
+| Configuration | `GET/PUT /config`, `/server`, `/server/users`, `/channels[/{c}]`, `/channels/{c}/devices[/{d}]`, `.../tags[/{t}]`, `.../tags.csv`, `POST .../tags/import` |
+| System | `GET /drivers` (every driver and its settings), `GET /log`, `GET /health` (no key), `GET /openapi/v1.json` |
+
+- **Same rules as the desktop app.** Names must be unique and period-free, settings are validated against the driver catalogue, and a change is applied to a copy, validated as a whole and then saved, so a bad request never leaves a half-edited project. Configuration changes return `409` while the runtime runs; stop it, change, start it again.
+- **Authentication.** Every call except `/health` and the OpenAPI document needs `Authorization: Bearer <key>` (or `X-Api-Key`). The key is generated on first run into `service.json` (`--new-api-key` rotates it; `RIZZSERVER_API_KEY` overrides it). Passwords of drivers (MQTT, OPC UA client) are never returned (`********`); sending the mask back keeps the stored value.
+- **Network exposure.** The API listens on loopback only by default. To expose it, change `Urls` in `service.json` (or `RIZZSERVER_API_URLS`) and put TLS in front (reverse proxy) or configure Kestrel HTTPS; the service warns when a non-loopback address uses plain HTTP and refuses to start with no key on a non-loopback address.
+- **Data folder.** `service.json`, `config.json` and `pki/` live in `RIZZSERVER_DATA_DIR` (default: the per-user application-data folder). The desktop app uses the same folder, so on one machine you can configure with the UI and run with the service; do not run both at once (they would share the OPC UA port).
+- **Settings** (`service.json` / environment): `Urls` / `RIZZSERVER_API_URLS`, `ApiKey` / `RIZZSERVER_API_KEY`, `AutoStart` / `RIZZSERVER_AUTOSTART` (start the runtime with the process; default true).
+
+Deployment files: `Dockerfile` and `deploy/docker-compose.yml`, `deploy/rizzserver.service` (systemd), `deploy/install-windows-service.ps1`. Build a self-contained service with `./installer/publish-portable.ps1 -Component Service`. The Docker, systemd and Windows-service files have not been run yet; the service itself is tested as a plain process (Windows). The desktop app is not yet a remote client of this API.
+
 ## Windows installer
 
 ```powershell

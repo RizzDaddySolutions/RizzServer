@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>rizzserver-service</AssemblyName>
+    <RootNamespace>RizzServer.Service</RootNamespace>
+    <Description>Headless RizzServer: OPC UA gateway runtime with a REST configuration and monitoring API</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RizzServer.Core\RizzServer.Core.csproj" />
+    <ProjectReference Include="..\RizzServer.Drivers\RizzServer.Drivers.csproj" />
+    <ProjectReference Include="..\RizzServer.Server\RizzServer.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.15" />
+  </ItemGroup>
+
+</Project>

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RizzServer.Core\RizzServer.Core.csproj" />
+    <ProjectReference Include="..\RizzServer.Drivers\RizzServer.Drivers.csproj" />
   </ItemGroup>
 
   <ItemGroup>

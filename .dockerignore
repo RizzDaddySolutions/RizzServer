@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+.git/
+.vs/
+artifacts/
+RizzServer.App/
+installer/
+*.md

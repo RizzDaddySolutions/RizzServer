@@ -29,12 +29,15 @@ Headless runs, smoke tests and screenshots **must set `RIZZSERVER_DATA_DIR` to a
 Setting the `APPDATA` environment variable does **not** redirect `Environment.GetFolderPath(ApplicationData)` on Windows, so without
 `RIZZSERVER_DATA_DIR` a test writes into the user's real `%AppData%\RizzServer` (their project, UI settings, certificates).
 
+Service tests: start the real `rizzserver-service` process with `RIZZSERVER_DATA_DIR` (and `RIZZSERVER_API_URLS`) set, use a non-default OPC UA port (4840 may be taken by another app), and always kill leftover processes. Do **not** enable `InvariantGlobalization` in the service: the OPC UA stack fails to start with it.
+
 ## Project layout
 
 - `RizzServer.Core` – models, `GatewayEngine`, driver catalog, CSV import
 - `RizzServer.Drivers` – protocol drivers (Modbus, RS-232 variants, MQTT, OPC DA, OPC UA client)
-- `RizzServer.Server` – OPC UA server (OPC Foundation stack pinned to 1.5.378.x)
+- `RizzServer.Server` – OPC UA server (OPC Foundation stack pinned to 1.5.378.x) and `GatewayRuntime` (config + engine + OPC UA host, shared by the UI and the service)
 - `RizzServer.App` – Avalonia UI
+- `RizzServer.Service` – headless host: REST API (`/api/v1`, minimal APIs), API-key auth, Windows/systemd service support. New configuration or runtime features should be reachable through the API too, and validated by `Core/ConfigValidator`.
 - `installer/` – `build.ps1` (Windows MSI), `publish-portable.ps1` (win/linux/osx archives)
 
 Model: channel (driver + shared link settings) → device (address settings, scan rate) → tags. OPC UA NodeIds are `Channel.Device.Tag`.

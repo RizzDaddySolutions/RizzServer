@@ -18,9 +18,11 @@ public sealed partial class AppState : ObservableObject
     private ILogger _log = null!;
 
     public LogService Logs { get; } = new();
-    public GatewayConfig Config { get; private set; } = new();
-    public GatewayEngine Engine { get; private set; } = null!;
-    public OpcUaHost Host { get; private set; } = null!;
+    /// <summary>Config + engine + OPC UA host, shared with the headless service.</summary>
+    public GatewayRuntime Runtime { get; private set; } = null!;
+    public GatewayConfig Config => Runtime.Config;
+    public GatewayEngine Engine => Runtime.Engine;
+    public OpcUaHost Host => Runtime.Host;
 
     /// <summary>Connections and tags of the running engine, rebuilt on every start/stop (UI thread).</summary>
     public ObservableCollection<ConnectionRuntime> RunningConnections { get; } = new();
@@ -49,9 +51,7 @@ public sealed partial class AppState : ObservableObject
         _loggers = LoggerFactory.Create(b => b.SetMinimumLevel(LogLevel.Information).AddProvider(Logs));
         _log = _loggers.CreateLogger("RizzServer");
 
-        Config = ConfigStore.Load();
-        Engine = new GatewayEngine(Config, new DriverFactory(_loggers), _loggers.CreateLogger("Engine"));
-        Host = new OpcUaHost(Engine, _loggers.CreateLogger("OPC UA"));
+        Runtime = new GatewayRuntime(ConfigStore.Load(), _loggers);
         Engine.RuntimeRebuilt += () => Dispatcher.UIThread.Invoke(SyncRuntime);
         _log.LogInformation("Loaded {Channels} channel(s), {Devices} device(s) from {Path}",
             Config.Channels.Count, Config.Channels.Sum(c => c.Devices.Count), ConfigStore.ConfigPath);
@@ -83,16 +83,15 @@ public sealed partial class AppState : ObservableObject
         try
         {
             Save();
-            await Engine.StartAsync();
-            await Host.StartAsync();
-            EndpointUrl = Host.EndpointUrl;
+            await Runtime.StartAsync();
+            EndpointUrl = Runtime.EndpointUrl;
             IsRunning = true;
             Status = "Running";
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Start failed");
-            await SafeStopAsync();
+            IsRunning = false;   // the runtime has already cleaned up and logged the failure
+            EndpointUrl = "";
             Status = "Start failed: " + ex.Message;
         }
         finally { IsBusy = false; }
@@ -113,8 +112,7 @@ public sealed partial class AppState : ObservableObject
 
     private async Task SafeStopAsync()
     {
-        try { await Host.StopAsync(); } catch (Exception ex) { _log.LogWarning(ex, "OPC UA stop"); }
-        try { await Engine.StopAsync(); } catch (Exception ex) { _log.LogWarning(ex, "Engine stop"); }
+        await Runtime.StopAsync();
         IsRunning = false;
         EndpointUrl = "";
     }

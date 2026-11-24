@@ -1,0 +1,28 @@
+# Linux (systemd) unit for the headless RizzServer.
+#
+#   sudo useradd --system --home /var/lib/rizzserver --create-home --shell /usr/sbin/nologin rizzserver
+#   sudo usermod -aG dialout rizzserver                      # serial ports (Debian/Ubuntu); "uucp" on Arch/Fedora
+#   sudo mkdir -p /opt/rizzserver && sudo tar -xzf RizzServer.Service-<version>-linux-x64.tar.gz -C /opt/rizzserver
+#   sudo cp deploy/rizzserver.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now rizzserver
+#   sudo -u rizzserver RIZZSERVER_DATA_DIR=/var/lib/rizzserver /opt/rizzserver/rizzserver-service --show-api-key
+
+[Unit]
+Description=RizzServer OPC UA gateway
+After=network.target
+
+[Service]
+Type=notify
+User=rizzserver
+WorkingDirectory=/opt/rizzserver
+ExecStart=/opt/rizzserver/rizzserver-service
+Environment=RIZZSERVER_DATA_DIR=/var/lib/rizzserver
+Restart=on-failure
+RestartSec=5
+# Hardening that doesn't get in the way of serial ports or sockets
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/rizzserver
+
+[Install]
+WantedBy=multi-user.target

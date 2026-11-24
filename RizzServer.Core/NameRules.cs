@@ -1,6 +1,6 @@
-namespace RizzServer.App.ViewModels;
+namespace RizzServer.Core;
 
-/// <summary>Naming rules shared by the wizard and Rename. Names become part of OPC UA NodeIds (Channel.Device.Tag).</summary>
+/// <summary>Naming rules shared by the UI, the wizard and the REST API. Names become part of OPC UA NodeIds (Channel.Device.Tag).</summary>
 public static class NameRules
 {
     /// <returns>An error message, or null when the name is acceptable.</returns>
