@@ -37,7 +37,14 @@ public sealed class GatewayRuntime
     /// <summary>Raised after the running state changed.</summary>
     public event Action? StateChanged;
 
-    public async Task StartAsync()
+    /// <summary>True while this node is the standby of a redundant pair: OPC UA is up (low ServiceLevel) but the drivers are idle.</summary>
+    public bool IsStandby { get; private set; }
+
+    public const byte ServiceLevelActive = 250, ServiceLevelStandby = 100, ServiceLevelDegraded = 50;
+
+    public Task StartAsync() => StartAsync(standby: false);
+
+    public async Task StartAsync(bool standby)
     {
         await Gate.WaitAsync();
         try
@@ -46,9 +53,11 @@ public sealed class GatewayRuntime
             try
             {
                 LastError = null;
-                await Engine.StartAsync();
+                await Engine.StartAsync(connectDrivers: !standby);
+                Host.ServiceLevel = standby ? ServiceLevelStandby : ServiceLevelActive;
                 await Host.StartAsync();
-                await Outputs.StartAsync();
+                if (!standby) await Outputs.StartAsync();
+                IsStandby = standby;
                 IsRunning = true;
                 StartedAt = DateTimeOffset.UtcNow;
             }
@@ -76,11 +85,12 @@ public sealed class GatewayRuntime
     public async Task ReloadAsync(GatewayConfig candidate)
     {
         var wasRunning = IsRunning;
+        var wasStandby = IsStandby;
         await StopAsync();
         await Gate.WaitAsync();
         try { ReplaceConfig(candidate); }
         finally { Gate.Release(); }
-        if (wasRunning) await StartAsync();
+        if (wasRunning) await StartAsync(wasStandby);
     }
 
     public async Task RestartAsync()
@@ -95,7 +105,40 @@ public sealed class GatewayRuntime
         try { await Host.StopAsync(); } catch (Exception ex) { _log.LogWarning(ex, "OPC UA stop"); }
         try { await Engine.StopAsync(); } catch (Exception ex) { _log.LogWarning(ex, "Engine stop"); }
         IsRunning = false;
+        IsStandby = false;
         StartedAt = null;
+    }
+
+    /// <summary>A standby node takes over: connect the drivers, start the outputs, raise the ServiceLevel.</summary>
+    public async Task PromoteAsync()
+    {
+        await Gate.WaitAsync();
+        try
+        {
+            if (!IsRunning || !IsStandby) return;
+            await Engine.ActivateAsync();
+            await Outputs.StartAsync();
+            Host.ServiceLevel = ServiceLevelActive;
+            IsStandby = false;
+        }
+        finally { Gate.Release(); }
+        StateChanged?.Invoke();
+    }
+
+    /// <summary>An active node hands over: drivers and outputs stop, the OPC UA server stays up with a low ServiceLevel.</summary>
+    public async Task DemoteAsync()
+    {
+        await Gate.WaitAsync();
+        try
+        {
+            if (!IsRunning || IsStandby) return;
+            Host.ServiceLevel = ServiceLevelStandby;   // clients move away first
+            await Outputs.StopAsync();
+            await Engine.DeactivateAsync();
+            IsStandby = true;
+        }
+        finally { Gate.Release(); }
+        StateChanged?.Invoke();
     }
 
     public void Save() => ConfigStore.Save(Config);

@@ -41,10 +41,18 @@ public sealed class LogBuffer : ILoggerProvider
 }
 
 /// <summary>Starts the runtime with the process and stops it on shutdown.</summary>
-public sealed class GatewayHostedService(GatewayRuntime runtime, ServiceSettings settings, ILogger<GatewayHostedService> log) : IHostedService
+public sealed class GatewayHostedService(GatewayRuntime runtime, ServiceSettings settings, RedundancyManager redundancy, ILogger<GatewayHostedService> log) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        if (redundancy.Enabled)
+        {
+            // A redundant node always starts as standby and lets the heartbeat decide who is active.
+            try { await redundancy.StartAsync(); }
+            catch (Exception ex) { log.LogError("Runtime did not start: {Error}. The API is still available.", ex.Message); }
+            return;
+        }
+
         if (!settings.AutoStart)
         {
             log.LogInformation("AutoStart is off; start the runtime with POST /api/v1/runtime/start");

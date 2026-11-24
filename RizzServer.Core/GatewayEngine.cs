@@ -34,7 +34,8 @@ public sealed class GatewayEngine
     /// <summary>Raised after Connections/Tags were rebuilt (start or stop).</summary>
     public event Action? RuntimeRebuilt;
 
-    public async Task StartAsync()
+    /// <summary>Builds the tag table and (unless <paramref name="connectDrivers"/> is false) connects the drivers. A standby node builds the table only.</summary>
+    public async Task StartAsync(bool connectDrivers = true)
     {
         if (IsRunning) return;
 
@@ -63,7 +64,16 @@ public sealed class GatewayEngine
         IsRunning = true;
         RuntimeRebuilt?.Invoke();
 
-        foreach (var cr in conns)
+        if (connectDrivers) await ActivateAsync();
+    }
+
+    public bool DriversActive => _drivers.Count > 0;
+
+    /// <summary>Connects the drivers of an already built table (a standby node taking over).</summary>
+    public async Task ActivateAsync()
+    {
+        if (!IsRunning || _drivers.Count > 0) return;
+        foreach (var cr in Connections)
         {
             try
             {
@@ -103,6 +113,20 @@ public sealed class GatewayEngine
         IsRunning = false;
         foreach (var t in Tags) t.Quality = TagQuality.Bad;
         RuntimeRebuilt?.Invoke();
+    }
+
+    /// <summary>Disconnects the drivers but keeps the table: tags go Bad, the OPC UA nodes stay (a node handing over to its peer).</summary>
+    public async Task DeactivateAsync()
+    {
+        if (!IsRunning || _drivers.Count == 0) return;
+        foreach (var (cr, driver) in _drivers)
+        {
+            try { await driver.StopAsync(); await driver.DisposeAsync(); }
+            catch (Exception ex) { _log.LogWarning(ex, "Error stopping {Conn}", cr.Name); }
+            cr.State = ConnectionState.Stopped;
+        }
+        _drivers.Clear();
+        foreach (var t in Tags) Apply(t, t.Value, TagQuality.Bad);
     }
 
     public async Task WriteAsync(TagRuntime tag, object value, CancellationToken ct = default)

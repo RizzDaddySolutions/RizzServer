@@ -50,6 +50,8 @@ builder.Services.AddSingleton(sp =>
 if (projectFile is not null)
     builder.Services.AddHostedService(sp => new ConfigFileWatcher(sp.GetRequiredService<GatewayRuntime>(), projectFile, sp.GetRequiredService<ILogger<ConfigFileWatcher>>()));
 builder.Services.AddSingleton<ConfigEditor>();
+builder.Services.AddSingleton<RedundancyManager>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RedundancyManager>());
 builder.Services.AddHostedService<GatewayHostedService>();
 
 if (!settings.HasCredentials && !settings.IsLoopbackOnly())
@@ -95,6 +97,7 @@ ConfigApi.Map(api);
 ProjectApi.Map(api);
 OutputsApi.Map(api);
 SecurityApi.Map(api);
+RedundancyApi.Map(api);
 CommissioningApi.Map(api);
 
 await app.RunAsync();

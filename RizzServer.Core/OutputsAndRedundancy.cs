@@ -79,7 +79,11 @@ public class RedundancySettings
 
     /// <summary>The other instance's API, e.g. https://plc2:5080.</summary>
     public string PeerUrl { get; set; } = "";
+    /// <summary>An Admin key of the peer (stored encrypted). Needed to read its state, copy its project and ask it to hand over.</summary>
     public string PeerApiKey { get; set; } = "";
+
+    /// <summary>For a peer with a self-signed certificate: its SHA-256 thumbprint (hex). Only that certificate is accepted.</summary>
+    public string PeerCertificateThumbprint { get; set; } = "";
 
     public int HeartbeatMs { get; set; } = 1000;
 

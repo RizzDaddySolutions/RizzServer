@@ -22,7 +22,8 @@ public sealed class ApiAuthMiddleware(RequestDelegate next, ServiceSettings sett
         var p = path.Value ?? "";
         var read = HttpMethods.IsGet(method) || HttpMethods.IsHead(method);
 
-        if (p.StartsWith("/api/v1/security", StringComparison.OrdinalIgnoreCase) || p.StartsWith("/api/v1/audit", StringComparison.OrdinalIgnoreCase))
+        if (p.StartsWith("/api/v1/security", StringComparison.OrdinalIgnoreCase) || p.StartsWith("/api/v1/audit", StringComparison.OrdinalIgnoreCase)
+            || p.StartsWith("/api/v1/redundancy/project", StringComparison.OrdinalIgnoreCase))
             return UserRole.Admin;
         if (read)
             return p.StartsWith("/api/v1/config/export", StringComparison.OrdinalIgnoreCase) && query.Value?.Contains("secrets=true", StringComparison.OrdinalIgnoreCase) == true

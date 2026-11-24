@@ -12,7 +12,7 @@ public sealed class OpcUaHost : IAsyncDisposable
     private readonly GatewayEngine _engine;
     private readonly ILogger _log;
     private ApplicationInstance? _app;
-    private StandardServer? _server;
+    private RizzStandardServer? _server;
 
     public OpcUaHost(GatewayEngine engine, ILogger log)
     {
@@ -21,6 +21,14 @@ public sealed class OpcUaHost : IAsyncDisposable
     }
 
     public bool IsRunning => _server is not null;
+
+    /// <summary>The OPC UA ServiceLevel (0..255) that redundancy-aware clients use to pick a server. 200+ is healthy.</summary>
+    public byte ServiceLevel
+    {
+        get => _serviceLevel;
+        set { _serviceLevel = value; _server?.SetServiceLevel(value); }
+    }
+    private byte _serviceLevel = 255;
     public string EndpointUrl { get; private set; } = "";
 
     public async Task StartAsync()
@@ -87,7 +95,7 @@ public sealed class OpcUaHost : IAsyncDisposable
         if (!await _app.CheckApplicationInstanceCertificates(true, 2048))
             throw new InvalidOperationException("Application certificate could not be created.");
 
-        _server = new RizzStandardServer(_engine, s);
+        _server = new RizzStandardServer(_engine, s) { InitialServiceLevel = _serviceLevel };
         await _app.Start(_server);
         _log.LogInformation("OPC UA server listening on {Url}", EndpointUrl);
     }
@@ -118,9 +126,23 @@ public sealed class OpcUaHost : IAsyncDisposable
             _settings = settings;
         }
 
+        public byte InitialServiceLevel { get; init; } = 255;
+        private IServerInternal? _internal;
+
+        public void SetServiceLevel(byte level)
+        {
+            if (_internal?.ServerObject?.ServiceLevel is { } node)
+            {
+                node.Value = level;
+                node.ClearChangeMasks(_internal.DefaultSystemContext, false);
+            }
+        }
+
         protected override void OnServerStarted(IServerInternal server)
         {
             base.OnServerStarted(server);
+            _internal = server;
+            SetServiceLevel(InitialServiceLevel);
             server.SessionManager.ImpersonateUser += OnImpersonateUser;
         }
 
