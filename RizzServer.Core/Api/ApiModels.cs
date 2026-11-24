@@ -22,7 +22,7 @@ public sealed class ServerBody
     public bool AutoAcceptCertificates { get; set; } = true;
     public string NamespaceUri { get; set; } = "urn:rizzserver:data";
     public bool AllowAnonymous { get; set; } = true;
-    public bool PublishOnChange { get; set; }
+    public bool PublishOnChange { get; set; } = true;
 
     /// <summary>Read-only: names only. Manage users with /api/v1/server/users.</summary>
     public List<string> Users { get; set; } = new();

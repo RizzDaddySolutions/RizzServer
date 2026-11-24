@@ -199,6 +199,10 @@ Produces `artifacts/installer/RizzServer-<version>-x64.msi` (WiX 5, self-contain
 
 Writes self-contained archives to `artifacts/portable/` (`.zip` for Windows, `.tar.gz` otherwise). Extract and run `RizzServer`. Linux/macOS builds are cross-published from Windows and have not been run on those systems yet.
 
+## Large projects
+
+**Publish only on change** (OPC UA Server settings, `PublishOnChange` in the project file and `/server`) is on by default: a poll whose value and quality did not change is not published to OPC UA, outputs or the event stream, and a tag's timestamp means "last change". In a test with 1,000,000 tags scanned once a second (10% changing), this cut the idle server load from 2.3 to 0.9 cores and let a subscribed client keep up (78k instead of 21k notifications/s). Turn it off if a consumer needs every poll as a heartbeat. List endpoints (`/channels`, `.../devices`, `.../tags`) take `skip`/`take` and return the total in `X-Total-Count`; `summary=true` returns counts instead of tags.
+
 ## Notes
 
 - **Edit ▸ New Channel…** opens the wizard: channel name → driver → communication settings (detected serial ports are listed) → first device (name, device settings, scan rate) → summary. **New Device…** runs the device half of it for an existing channel. Tags are added in the device's tag grid.

@@ -133,10 +133,10 @@ public partial class ServerSettings : ObservableObject
     /// <summary>
     /// Only publish a tag (OPC UA, MQTT/other outputs, the API's event stream) when its value or quality changed. Unchanged polls
     /// are dropped right after the driver, which is what keeps very large projects (hundreds of thousands of tags) light when most
-    /// values are static. Off by default: outputs then also see every poll, which some consumers use as a heartbeat. A tag's
-    /// timestamp then means "last change".
+    /// values are static. On by default; turn it off if a consumer needs every poll as a heartbeat. With it on, a tag's
+    /// timestamp means "last change".
     /// </summary>
-    [ObservableProperty] private bool _publishOnChange;
+    [ObservableProperty] private bool _publishOnChange = true;
 
     /// <summary>Accounts allowed to log in with user name + password.</summary>
     public ObservableCollection<UserAccount> Users { get; set; } = new();
