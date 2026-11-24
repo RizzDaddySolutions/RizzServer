@@ -1,41 +1,8 @@
 using RizzServer.Core.Api;
 using System.Collections.Concurrent;
-using System.Security.Cryptography;
-using System.Text;
 using RizzServer.Server;
 
 namespace RizzServer.Service;
-
-/// <summary>Rejects API calls without the configured key. /health and the OpenAPI document stay open.</summary>
-public sealed class ApiKeyMiddleware(RequestDelegate next, ServiceSettings settings)
-{
-    private readonly byte[]? _expected = settings.ApiKey.Length == 0 ? null : SHA256.HashData(Encoding.UTF8.GetBytes(settings.ApiKey));
-
-    public async Task InvokeAsync(HttpContext context)
-    {
-        var path = context.Request.Path;
-        if (_expected is null || path.StartsWithSegments("/health") || path.StartsWithSegments("/openapi") || path == "/")
-        {
-            await next(context);
-            return;
-        }
-
-        var supplied = context.Request.Headers.Authorization.ToString();
-        supplied = supplied.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? supplied[7..].Trim() : "";
-        if (supplied.Length == 0) supplied = context.Request.Headers["X-Api-Key"].ToString();
-
-        // Compare hashes so the comparison time doesn't depend on how much of the key matched.
-        if (supplied.Length > 0 && CryptographicOperations.FixedTimeEquals(SHA256.HashData(Encoding.UTF8.GetBytes(supplied)), _expected))
-        {
-            await next(context);
-            return;
-        }
-
-        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-        context.Response.Headers.WWWAuthenticate = "Bearer";
-        await context.Response.WriteAsJsonAsync(new { error = "Missing or invalid API key." });
-    }
-}
 
 /// <summary>Keeps the last events in memory for GET /api/v1/log.</summary>
 public sealed class LogBuffer : ILoggerProvider

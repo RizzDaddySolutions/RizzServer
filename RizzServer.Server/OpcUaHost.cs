@@ -134,13 +134,25 @@ public sealed class OpcUaHost : IAsyncDisposable
                     break;
 
                 case UserNameIdentityToken token:
+                    var lockKey = "opc:" + token.UserName;
+                    if (_engine.LoginFailures.IsLocked(lockKey))
+                    {
+                        _engine.Audit?.Invoke("login-blocked", token.UserName, "opc-ua", "account temporarily locked after repeated failures");
+                        throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Too many failed attempts; try again later.");
+                    }
                     var user = _settings.Users.FirstOrDefault(u =>
                         string.Equals(u.Username, token.UserName, StringComparison.Ordinal));
                     var password = token.DecryptedPassword is { } raw ? System.Text.Encoding.UTF8.GetString(raw) : "";
                     // Verify against a dummy hash when the user is unknown so timing doesn't reveal valid names.
                     var ok = PasswordHasher.Verify(password, user?.PasswordHash ?? DummyHash);
                     if (user is null || !ok)
+                    {
+                        var locked = _engine.LoginFailures.Fail(lockKey);
+                        _engine.Audit?.Invoke("login-failed", token.UserName, "opc-ua", locked ? "locked for 5 minutes" : "wrong user name or password");
                         throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user name or password.");
+                    }
+                    _engine.LoginFailures.Succeed(lockKey);
+                    _engine.Audit?.Invoke("login", token.UserName, "opc-ua", user.Role.ToString());
                     args.Identity = new UserIdentity(token);
                     break;
 

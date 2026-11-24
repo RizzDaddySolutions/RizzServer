@@ -27,6 +27,9 @@ public sealed class GatewayEngine
     /// <summary>Set by the host to record security-relevant events: (action, user, target, detail).</summary>
     public Action<string, string, string, string>? Audit { get; set; }
 
+    /// <summary>OPC UA password logins: five wrong passwords for one user name lock it for five minutes.</summary>
+    public FailureTracker LoginFailures { get; } = new(5);
+
     public event Action<TagRuntime>? TagUpdated;
     /// <summary>Raised after Connections/Tags were rebuilt (start or stop).</summary>
     public event Action? RuntimeRebuilt;

@@ -10,12 +10,16 @@ namespace RizzServer.Service;
 /// rizzserver-service export project.yaml [--with-secrets]
 /// rizzserver-service apply project.yaml
 /// rizzserver-service schema
+/// rizzserver-service keys list | create &lt;name&gt; [Viewer|Operator|Admin] | revoke &lt;name&gt;
+/// rizzserver-service audit tail [count] | verify
+/// rizzserver-service security-report
+/// rizzserver-service harden
 /// </code>
 /// Exit code 0 = ok, 1 = problems found, 2 = bad usage.
 /// </summary>
 public static class Cli
 {
-    public static readonly string[] Commands = ["validate", "diff", "export", "apply", "schema"];
+    public static readonly string[] Commands = ["validate", "diff", "export", "apply", "schema", "keys", "audit", "security-report", "harden"];
 
     public static int? TryRun(string[] args, TextWriter @out, TextWriter err)
     {
@@ -31,6 +35,20 @@ public static class Cli
                 case "schema":
                     @out.WriteLine(ConfigStore.Schema());
                     return 0;
+
+                case "keys": return Keys(files, @out, err);
+                case "audit": return Audit(files, @out, err);
+
+                case "security-report":
+                {
+                    var settings = ServiceSettings.LoadOrCreate(out _);
+                    var findings = SecurityReport.Check(ConfigStore.Load(), settings);
+                    foreach (var f in findings) @out.WriteLine($"[{f.Severity}] {f.Title}\n        {f.Detail}\n        Fix: {f.Fix}");
+                    @out.WriteLine(findings.Count == 0 ? "No findings." : $"{findings.Count} finding(s).");
+                    return findings.Any(f => f.Severity == "High") ? 1 : 0;
+                }
+
+                case "harden": return Harden(@out);
 
                 case "validate":
                     if (files.Count != 1) return Usage(err, "validate <file>");
@@ -82,6 +100,84 @@ public static class Cli
             return 1;
         }
         return null;
+    }
+
+    private static int Keys(List<string> a, TextWriter @out, TextWriter err)
+    {
+        var settings = ServiceSettings.LoadOrCreate(out var first);
+        if (first is not null) @out.WriteLine($"(first run: created admin key 'default': {first})");
+        switch (a.FirstOrDefault()?.ToLowerInvariant())
+        {
+            case "list":
+                foreach (var k in settings.ApiKeys) @out.WriteLine($"{k.Name,-20} {k.Role,-9} created {k.Created:yyyy-MM-dd}");
+                if (settings.ApiKeys.Count == 0) @out.WriteLine("No keys: the API is open (loopback only).");
+                return 0;
+            case "create" when a.Count is 2 or 3:
+                if (a.Count == 3 && !Enum.TryParse<UserRole>(a[2], true, out _)) return Usage(err, "keys create <name> [Viewer|Operator|Admin]");
+                try
+                {
+                    var role = a.Count == 3 ? Enum.Parse<UserRole>(a[2], true) : UserRole.Viewer;
+                    var key = settings.AddKey(a[1], role);
+                    settings.Save();
+                    new AuditLog().Write("key-created", "cli", a[1], role.ToString());
+                    @out.WriteLine($"Key '{a[1]}' ({role}) created. Save it now, it cannot be shown again:\n  {key}");
+                    return 0;
+                }
+                catch (InvalidOperationException ex) { err.WriteLine(ex.Message); return 1; }
+            case "revoke" when a.Count == 2:
+                var entry = settings.ApiKeys.FirstOrDefault(k => string.Equals(k.Name, a[1], StringComparison.OrdinalIgnoreCase));
+                if (entry is null) { err.WriteLine($"No key named '{a[1]}'."); return 1; }
+                if (entry.Role == UserRole.Admin && settings.ApiKeys.Count(k => k.Role == UserRole.Admin) == 1)
+                { err.WriteLine("This is the only admin key; create another first."); return 1; }
+                settings.ApiKeys.Remove(entry);
+                settings.Save();
+                new AuditLog().Write("key-revoked", "cli", a[1], "");
+                @out.WriteLine($"Key '{a[1]}' revoked.");
+                return 0;
+            default: return Usage(err, "keys list | create <name> [Viewer|Operator|Admin] | revoke <name>");
+        }
+    }
+
+    private static int Audit(List<string> a, TextWriter @out, TextWriter err)
+    {
+        var log = new AuditLog();
+        switch (a.FirstOrDefault()?.ToLowerInvariant())
+        {
+            case "tail":
+                foreach (var e in log.Tail(a.Count > 1 && int.TryParse(a[1], out var n) ? n : 50))
+                    @out.WriteLine($"{e.Time:yyyy-MM-dd HH:mm:ss}  {e.Action,-14} {e.User,-14} {e.Target}  {e.Detail}");
+                return 0;
+            case "verify":
+                var (lines, bad, problem) = log.Verify();
+                if (bad is null) { @out.WriteLine($"Audit log intact ({lines} entries)."); return 0; }
+                err.WriteLine($"Audit log broken at line {bad}: {problem}");
+                return 1;
+            default: return Usage(err, "audit tail [count] | verify");
+        }
+    }
+
+    /// <summary>Closes the common holes in the stored project: no anonymous access, no unencrypted OPC UA, no blind certificate trust.</summary>
+    private static int Harden(TextWriter @out)
+    {
+        var config = ConfigStore.Load();
+        var s = config.Server;
+        var changes = new List<string>();
+        if (s.Users.Count == 0)
+        {
+            var password = ServiceSettings.NewApiKey()[..20];
+            s.Users.Add(new UserAccount { Username = "admin", Role = UserRole.Admin, PasswordHash = PasswordHasher.Hash(password) });
+            changes.Add($"Created OPC UA user 'admin' (Admin) with password {password}   <- save it now, it cannot be shown again");
+        }
+        if (s.AllowAnonymous) { s.AllowAnonymous = false; changes.Add("OPC UA anonymous access turned off"); }
+        if (s.AllowNoSecurity) { s.AllowNoSecurity = false; changes.Add("OPC UA 'None' security mode turned off (clients must sign & encrypt)"); }
+        if (s.AutoAcceptCertificates) { s.AutoAcceptCertificates = false; changes.Add("Client certificates are no longer auto-accepted: copy trusted certificates into the 'trusted' folder of the pki directory"); }
+        if (changes.Count == 0) { @out.WriteLine("Nothing to change: the project is already hardened."); return 0; }
+
+        ConfigStore.Save(config);
+        new AuditLog().Write("harden", "cli", "project", string.Join("; ", changes.Select(c => c.Split("   <-")[0])));
+        foreach (var c in changes) @out.WriteLine("- " + c);
+        @out.WriteLine("Saved. Restart the service for the OPC UA changes to take effect.");
+        return 0;
     }
 
     private static GatewayConfig Load(string path) =>
