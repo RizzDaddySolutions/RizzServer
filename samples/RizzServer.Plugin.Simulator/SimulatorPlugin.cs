@@ -47,9 +47,9 @@ internal sealed class SimulatorDriver(DriverContext context) : PluginDriver(cont
     {
         var seed = Context.SettingInt("Seed", 0);
         _random = seed == 0 ? new Random() : new Random(seed);
+        // The clock keeps running after a reconnect (a dropout is simulated only once per run, see PollAsync, so no
+        // endless loop); stopping it here froze every sine and ramp tag at t = 0.
         _clock.Restart();
-        // A dropout is simulated once per run so reconnect behaviour can be watched without causing an endless loop.
-        if (_dropped) _clock.Reset();
         return Task.CompletedTask;
     }
 
