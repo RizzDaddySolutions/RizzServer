@@ -9,6 +9,15 @@
     <Description>Headless RizzServer: OPC UA gateway runtime with a REST configuration and monitoring API</Description>
   </PropertyGroup>
 
+  <!-- Single-file publish: `dotnet publish -r <rid>` yields one self-contained executable. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\RizzServer.Core\RizzServer.Core.csproj" />
     <ProjectReference Include="..\RizzServer.Drivers\RizzServer.Drivers.csproj" />

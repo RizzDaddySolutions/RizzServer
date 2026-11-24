@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Publishes self-contained RizzServer builds (desktop App or headless Service) for Windows, Linux and macOS and archives them.
+  Publishes single-file, self-contained RizzServer builds (desktop App or headless Service) for Windows, Linux and macOS and archives them.
 .EXAMPLE
   ./installer/publish-portable.ps1
   ./installer/publish-portable.ps1 -Runtimes linux-x64
