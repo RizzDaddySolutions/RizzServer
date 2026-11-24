@@ -85,6 +85,7 @@ RuntimeApi.Map(api);
 ConfigApi.Map(api);
 ProjectApi.Map(api);
 OutputsApi.Map(api);
+CommissioningApi.Map(api);
 
 await app.RunAsync();
 return 0;

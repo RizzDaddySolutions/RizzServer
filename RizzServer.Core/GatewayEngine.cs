@@ -9,6 +9,7 @@ public sealed class GatewayEngine
     private readonly ILogger _log;
     private readonly Dictionary<ConnectionRuntime, IDriver> _drivers = new();
     private readonly Dictionary<(ConnectionConfig, TagConfig), TagRuntime> _tagMap = new();
+    private readonly Dictionary<ConnectionConfig, DeviceStats> _stats = new();
 
     public GatewayEngine(GatewayConfig config, IDriverFactory factory, ILogger log)
     {
@@ -18,6 +19,7 @@ public sealed class GatewayEngine
     }
 
     public GatewayConfig Config { get; }
+    public IDriverFactory Factory => _factory;
     public IReadOnlyList<ConnectionRuntime> Connections { get; private set; } = [];
     public IReadOnlyList<TagRuntime> Tags { get; private set; } = [];
     public bool IsRunning { get; private set; }
@@ -36,12 +38,15 @@ public sealed class GatewayEngine
         var conns = new List<ConnectionRuntime>();
         var tags = new List<TagRuntime>();
         _tagMap.Clear();
+        _stats.Clear();
 
         foreach (var channel in Config.Channels.Where(c => c.Enabled))
         foreach (var device in channel.Devices.Where(d => d.Enabled))
         {
             var c = channel.Flatten(device);
-            conns.Add(new ConnectionRuntime(c));
+            var runtime = new ConnectionRuntime(c);
+            conns.Add(runtime);
+            _stats[c] = runtime.Stats;
             foreach (var t in c.Tags)
             {
                 var rt = new TagRuntime(c, t);
@@ -66,6 +71,7 @@ public sealed class GatewayEngine
                 {
                     cr.State = state;
                     cr.Message = msg ?? "";
+                    cr.Stats.OnState(state, msg);
                     if (string.IsNullOrEmpty(msg)) _log.LogInformation("[{Conn}] {State}", cfg.Name, state);
                     else _log.LogWarning("[{Conn}] {State}: {Msg}", cfg.Name, state, msg);
                 };
@@ -116,9 +122,25 @@ public sealed class GatewayEngine
         Apply(tag, coerced, TagQuality.Good);
     }
 
+    /// <summary>Per-device health for the commissioning views and the diagnostics API.</summary>
+    public IReadOnlyList<DeviceDiagnostics> GetDiagnostics() => [.. Connections.Select(c =>
+    {
+        var d = _drivers.TryGetValue(c, out var driver) ? driver as IDriverDiagnostics : null;
+        var tags = Tags.Where(t => t.Connection == c.Config).ToList();
+        return new DeviceDiagnostics(c.Config.ChannelName, c.Config.DeviceName, c.State.ToString(), c.Message,
+            c.Stats.ConnectedSince, c.Stats.Reconnects, d?.Polls ?? 0, d?.PollErrors ?? 0, d?.LastPollMs ?? 0, d?.AveragePollMs ?? 0,
+            c.Stats.Updates, c.Stats.BadUpdates, Math.Round(c.Stats.Rate(), 1), c.Stats.LastUpdate,
+            tags.Count, tags.Count(t => t.Quality == TagQuality.Good), tags.Count(t => t.Quality != TagQuality.Good));
+    })];
+
+    public IReadOnlyList<DeviceEvent> GetEvents(string channel, string device) =>
+        Connections.FirstOrDefault(c => string.Equals(c.Config.ChannelName, channel, StringComparison.OrdinalIgnoreCase)
+                                        && string.Equals(c.Config.DeviceName, device, StringComparison.OrdinalIgnoreCase))?.Stats.Events ?? [];
+
     private void OnTagUpdated(ConnectionConfig conn, TagConfig tag, object? value, TagQuality quality)
     {
         if (!_tagMap.TryGetValue((conn, tag), out var rt)) return;
+        if (_stats.TryGetValue(conn, out var stats)) stats.OnUpdate(quality);
         var scaled = value is null ? null : TagScaling.ToEngineering(tag, value);
         var coerced = scaled is null ? null : TagValueConverter.Coerce(scaled, tag.DataType);
         if (value is not null && coerced is null) quality = TagQuality.Bad;

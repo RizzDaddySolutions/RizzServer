@@ -167,6 +167,9 @@ public partial class ConnectionRuntime : ObservableObject
     public string Name => Config.Name;
     [ObservableProperty] private ConnectionState _state = ConnectionState.Stopped;
     [ObservableProperty] private string _message = "";
+
+    /// <summary>Counters and event history for commissioning (see <see cref="DeviceDiagnostics"/>).</summary>
+    public DeviceStats Stats { get; } = new();
 }
 
 /// <summary>Live value of one tag; this is what the OPC UA address space mirrors.</summary>
