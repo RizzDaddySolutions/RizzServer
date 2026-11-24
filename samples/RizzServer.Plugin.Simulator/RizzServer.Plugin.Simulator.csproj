@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Produces a .deps.json and copies the plugin's own dependencies next to it, so the server can load it in isolation. -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      In your own plugin project reference the NuGet package instead:
+        <PackageReference Include="RizzServer.Sdk" Version="1.*" ExcludeAssets="runtime" />
+      The SDK assembly is supplied by the server; it must not be copied next to the plugin (Private=false / ExcludeAssets=runtime).
+    -->
+    <ProjectReference Include="..\..\RizzServer.Sdk\RizzServer.Sdk.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

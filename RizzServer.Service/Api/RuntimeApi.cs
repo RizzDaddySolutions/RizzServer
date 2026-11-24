@@ -80,9 +80,11 @@ public static class RuntimeApi
 
         var misc = api.MapGroup("").WithTags("System");
 
-        misc.MapGet("/drivers", () => Results.Ok(DriverCatalog.All.Select(d => new
+        misc.MapGet("/drivers", () => Results.Ok(DriverCatalog.Available.Select(d => new
         {
             type = d.Type.ToString(),
+            pluginId = d.PluginId,
+            source = d.Source,
             name = d.DisplayName,
             addressHint = d.AddressHint,
             maxDevices = d.MaxDevices,

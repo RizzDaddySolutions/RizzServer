@@ -14,12 +14,13 @@ namespace RizzServer.Service;
 /// rizzserver-service audit tail [count] | verify
 /// rizzserver-service security-report
 /// rizzserver-service harden
+/// rizzserver-service plugins
 /// </code>
 /// Exit code 0 = ok, 1 = problems found, 2 = bad usage.
 /// </summary>
 public static class Cli
 {
-    public static readonly string[] Commands = ["validate", "diff", "export", "apply", "schema", "keys", "audit", "security-report", "harden"];
+    public static readonly string[] Commands = ["validate", "diff", "export", "apply", "schema", "keys", "audit", "security-report", "harden", "plugins"];
 
     public static int? TryRun(string[] args, TextWriter @out, TextWriter err)
     {
@@ -49,6 +50,13 @@ public static class Cli
                 }
 
                 case "harden": return Harden(@out);
+
+                case "plugins":
+                    @out.WriteLine("Plugin folders: " + string.Join(", ", RizzServer.Drivers.PluginLoader.SearchFolders));
+                    foreach (var pl in RizzServer.Drivers.PluginLoader.Status)
+                        @out.WriteLine($"{pl.State,-9} {pl.Id,-24} {pl.Version,-8} {pl.Source}  sha256:{pl.Sha256[..16]}…{(pl.Error is null ? "" : "  " + pl.Error)}");
+                    if (RizzServer.Drivers.PluginLoader.Status.Count == 0) @out.WriteLine("No plugins found.");
+                    return 0;
 
                 case "validate":
                     if (files.Count != 1) return Usage(err, "validate <file>");

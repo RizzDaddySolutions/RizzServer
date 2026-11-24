@@ -16,6 +16,7 @@ public sealed class GatewayRuntime
     {
         Config = config;
         _log = loggers.CreateLogger("RizzServer");
+        PluginLoader.EnsureLoaded(loggers.CreateLogger("Plugins"));
         Engine = new GatewayEngine(config, new DriverFactory(loggers), loggers.CreateLogger("Engine"));
         Host = new OpcUaHost(Engine, loggers.CreateLogger("OPC UA"));
         Outputs = new NorthboundManager(Engine, loggers);

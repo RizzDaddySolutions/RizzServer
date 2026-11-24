@@ -5,6 +5,9 @@ using RizzServer.Server;
 using RizzServer.Service;
 using RizzServer.Service.Api;
 
+// Plugin drivers must be known before a project that uses them is validated or started.
+RizzServer.Drivers.PluginLoader.EnsureLoaded();
+
 // ---- project-as-code commands (validate, diff, export, apply, schema) ----
 if (Cli.TryRun(args, Console.Out, Console.Error) is { } exitCode) return exitCode;
 
@@ -95,6 +98,7 @@ var api = app.MapGroup("/api/v1");
 RuntimeApi.Map(api);
 ConfigApi.Map(api);
 ProjectApi.Map(api);
+PluginsApi.Map(api);
 OutputsApi.Map(api);
 SecurityApi.Map(api);
 RedundancyApi.Map(api);

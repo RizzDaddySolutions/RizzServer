@@ -1,7 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\RizzServer.Core\RizzServer.Core.csproj" />
+    <ProjectReference Include="..\RizzServer.Sdk\RizzServer.Sdk.csproj" />
   </ItemGroup>
 
   <ItemGroup>

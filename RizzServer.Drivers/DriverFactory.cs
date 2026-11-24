@@ -22,6 +22,7 @@ public sealed class DriverFactory : IDriverFactory
             DriverType.OpcUa => new OpcUaClientDriver(config, log),
             DriverType.Mqtt => new MqttDriver(config, log),
             DriverType.OpcDa => new OpcDaDriver(config, log),
+            DriverType.Plugin => PluginLoader.Create(config, log),
             _ => throw new NotSupportedException(config.DriverType.ToString()),
         };
     }
