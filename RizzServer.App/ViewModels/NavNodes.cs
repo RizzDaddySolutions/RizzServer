@@ -136,7 +136,7 @@ public abstract partial class NavNode : ObservableObject
 public sealed class ProjectNode : NavNode
 {
     public ProjectNode() : base("Project", Res("ProjectIcon")) { }
-    public string ProjectPath => ConfigStore.ConfigPath;
+    public string ProjectPath => App.IsRemote ? App.Backend.Description : ConfigStore.ConfigPath;
     public int DeviceCount => App.Config.Channels.Sum(c => c.Devices.Count);
     public int TagCount => App.Config.Channels.Sum(c => c.Devices.Sum(d => d.Tags.Count));
 
@@ -163,15 +163,27 @@ public sealed partial class ConnectivityNode : NavNode
         var channels = AppState.Instance.Config.Channels;
         foreach (var c in channels) Children.Add(new ChannelNode(c, select, addDevice));
         channels.CollectionChanged += OnChannelsChanged;
-        App.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName != nameof(AppState.IsEditable)) return;
-            NewChannelCommand.NotifyCanExecuteChanged();
-            RenameSelectedCommand.NotifyCanExecuteChanged();
-            DuplicateSelectedCommand.NotifyCanExecuteChanged();
-            DeleteSelectedCommand.NotifyCanExecuteChanged();
-        };
+        App.PropertyChanged += OnAppPropertyChanged;
     }
+
+    private void OnAppPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(AppState.IsEditable)) return;
+        NewChannelCommand.NotifyCanExecuteChanged();
+        RenameSelectedCommand.NotifyCanExecuteChanged();
+        DuplicateSelectedCommand.NotifyCanExecuteChanged();
+        DeleteSelectedCommand.NotifyCanExecuteChanged();
+    }
+
+    public override void Detach()
+    {
+        Config.Channels.CollectionChanged -= OnChannelsChanged;
+        App.PropertyChanged -= OnAppPropertyChanged;
+        foreach (var c in Children.OfType<ChannelNode>()) c.Detach();
+        base.Detach();
+    }
+
+    private GatewayConfig Config => App.Config;
 
     public ObservableCollection<ChannelConfig> Channels => App.Config.Channels;
 
@@ -640,7 +652,7 @@ public sealed partial class ServerNode : NavNode
 
     /// <summary>Adds a user, or replaces the password if the name already exists.</summary>
     [RelayCommand]
-    private void AddUser()
+    private async Task AddUserAsync()
     {
         var name = NewUsername.Trim();
         if (name.Length == 0 || NewPassword.Length < 8)
@@ -649,23 +661,43 @@ public sealed partial class ServerNode : NavNode
             return;
         }
 
-        var hash = PasswordHasher.Hash(NewPassword);
-        var existing = Server.Users.FirstOrDefault(u => u.Username == name);
-        if (existing is not null) { existing.PasswordHash = hash; UserMessage = $"Password updated for {name}."; }
-        else { Server.Users.Add(new UserAccount { Username = name, PasswordHash = hash }); UserMessage = $"User {name} added."; }
+        if (App.Remote is { } remote)
+        {
+            // The service hashes the password; only names come back.
+            try { await remote.AddUserAsync(name, NewPassword); }
+            catch (RizzServer.Core.Api.ServiceApiException ex) { UserMessage = ex.FullMessage; return; }
+            UserMessage = $"User {name} saved on the service.";
+        }
+        else
+        {
+            var hash = PasswordHasher.Hash(NewPassword);
+            var existing = Server.Users.FirstOrDefault(u => u.Username == name);
+            if (existing is not null) { existing.PasswordHash = hash; UserMessage = $"Password updated for {name}."; }
+            else { Server.Users.Add(new UserAccount { Username = name, PasswordHash = hash }); UserMessage = $"User {name} added."; }
+            App.Save();
+        }
 
         NewUsername = "";
         NewPassword = "";
-        App.Save();
     }
 
     [RelayCommand(CanExecute = nameof(HasSelectedUser))]
-    private void RemoveUser()
+    private async Task RemoveUserAsync()
     {
         if (SelectedUser is null) return;
-        UserMessage = $"User {SelectedUser.Username} removed.";
-        Server.Users.Remove(SelectedUser);
-        App.Save();
+        var name = SelectedUser.Username;
+
+        if (App.Remote is { } remote)
+        {
+            try { await remote.RemoveUserAsync(name); }
+            catch (RizzServer.Core.Api.ServiceApiException ex) { UserMessage = ex.FullMessage; return; }
+        }
+        else
+        {
+            Server.Users.Remove(SelectedUser);
+            App.Save();
+        }
+        UserMessage = $"User {name} removed.";
     }
 
     private bool HasSelectedUser() => SelectedUser is not null;
@@ -710,7 +742,7 @@ public sealed partial class QuickClientNode : NavNode
         if (Selected is null) return;
         try
         {
-            await App.Engine.WriteAsync(Selected, WriteText);
+            await App.WriteAsync(Selected, WriteText);
             Message = $"Wrote {WriteText} to {Selected.NodePath}";
         }
         catch (Exception ex) { Message = "Write failed: " + ex.Message; }

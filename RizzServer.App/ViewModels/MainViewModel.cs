@@ -8,23 +8,46 @@ namespace RizzServer.App.ViewModels;
 
 public sealed partial class MainViewModel : ObservableObject, INavHost
 {
-    private readonly ConnectivityNode _connectivity;
+    private ConnectivityNode _connectivity = null!;
 
     public MainViewModel()
     {
+        BuildTree();
+        NavHost.Current = this;
+
+        App.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AppState.IsEditable)) NotifyCommands();
+            if (e.PropertyName is nameof(AppState.IsRunning) or nameof(AppState.IsRemote) or nameof(AppState.ConnectionText)) NotifyConnectionCommands();
+        };
+
+        // Connecting to / leaving a service swaps the project object, so the tree is rebuilt.
+        App.ConfigReplaced += () =>
+        {
+            BuildTree();
+            NotifyCommands();
+            NotifyConnectionCommands();
+        };
+    }
+
+    private void BuildTree()
+    {
+        foreach (var old in Roots) DetachTree(old);
+        Roots.Clear();
+
         var project = new ProjectNode();
         _connectivity = new ConnectivityNode(n => SelectedNode = n, RunDeviceWizardAsync);
         project.Children.Add(_connectivity);
         project.Children.Add(new ServerNode());
         project.Children.Add(new QuickClientNode());
         Roots.Add(project);
-        _selectedNode = project;
-        NavHost.Current = this;
+        SelectedNode = project;
+    }
 
-        App.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(AppState.IsEditable)) NotifyCommands();
-        };
+    private static void DetachTree(NavNode node)
+    {
+        foreach (var child in node.Children) DetachTree(child);
+        node.Detach();
     }
 
     public AppState App => AppState.Instance;
@@ -32,6 +55,12 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
 
     /// <summary>Asks the user to confirm; set by the window.</summary>
     public Func<string, Task<bool>>? Confirm { get; set; }
+
+    /// <summary>Like <see cref="Confirm"/> with a custom button caption (e.g. "Discard").</summary>
+    public Func<string, string, Task<bool>>? ConfirmWith { get; set; }
+
+    /// <summary>Shows the connect dialog; true when a service was connected.</summary>
+    public Func<Task<bool>>? ShowConnect { get; set; }
     public Func<Task>? ShowAbout { get; set; }
     public Action? Exit { get; set; }
 
@@ -99,7 +128,59 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
     private DeviceNode? CurrentDevice => SelectedNode as DeviceNode;
 
     [RelayCommand]
-    private void Save() => App.Save();
+    private async Task SaveAsync()
+    {
+        if (!await App.SaveAsync() && FileService.Message is { } message)
+            await message("Save failed", App.LastSaveError);
+    }
+
+    // ---- File ▸ Connect to / Disconnect from / Reload from a headless service ----
+    [RelayCommand(CanExecute = nameof(CanConnect))]
+    private async Task ConnectAsync()
+    {
+        if (ShowConnect is not null) await ShowConnect();
+    }
+
+    private bool CanConnect() => !App.IsRemote && !App.IsRunning;
+
+    [RelayCommand(CanExecute = nameof(IsRemoteNow))]
+    private async Task DisconnectAsync()
+    {
+        if (!await ConfirmDiscardAsync("Disconnect from the service")) return;
+        App.DisconnectRemote();
+    }
+
+    [RelayCommand(CanExecute = nameof(IsRemoteNow))]
+    private async Task ReloadAsync()
+    {
+        if (App.Remote is not { } remote || !await ConfirmDiscardAsync("Reload from the service")) return;
+        try
+        {
+            await remote.ReloadAsync();
+            SelectedNode = Roots[0];
+            App.LogInfo("Reloaded the project from " + remote.Description);
+        }
+        catch (Exception ex) when (ex is RizzServer.Core.Api.ServiceApiException)
+        {
+            if (FileService.Message is { } message) await message("Reload failed", ((RizzServer.Core.Api.ServiceApiException)ex).FullMessage);
+        }
+    }
+
+    private bool IsRemoteNow() => App.IsRemote;
+
+    /// <summary>True when there is nothing unsaved, or the user agreed to throw it away.</summary>
+    private async Task<bool> ConfirmDiscardAsync(string action)
+    {
+        if (!App.IsDirty) return true;
+        return ConfirmWith is null || await ConfirmWith($"{action}? Changes that are not saved to the service will be lost.", "Discard");
+    }
+
+    private void NotifyConnectionCommands()
+    {
+        ConnectCommand.NotifyCanExecuteChanged();
+        DisconnectCommand.NotifyCanExecuteChanged();
+        ReloadCommand.NotifyCanExecuteChanged();
+    }
 
     /// <summary>Shows a wizard; returns true when the user finished it. Set by the window.</summary>
     public Func<WizardViewModel, Task<bool>>? ShowWizard { get; set; }

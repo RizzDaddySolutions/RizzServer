@@ -1,3 +1,4 @@
+using RizzServer.Core.Api;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
@@ -35,8 +36,6 @@ public sealed class ApiKeyMiddleware(RequestDelegate next, ServiceSettings setti
         await context.Response.WriteAsJsonAsync(new { error = "Missing or invalid API key." });
     }
 }
-
-public sealed record LogLine(DateTimeOffset Time, string Level, string Source, string Message);
 
 /// <summary>Keeps the last events in memory for GET /api/v1/log.</summary>
 public sealed class LogBuffer : ILoggerProvider

@@ -71,8 +71,15 @@ curl -N -H "Authorization: Bearer $KEY" "http://127.0.0.1:5080/api/v1/stream?sna
 - **Data folder.** `service.json`, `config.json` and `pki/` live in `RIZZSERVER_DATA_DIR` (default: the per-user application-data folder). The desktop app uses the same folder, so on one machine you can configure with the UI and run with the service; do not run both at once (they would share the OPC UA port).
 - **Settings** (`service.json` / environment): `Urls` / `RIZZSERVER_API_URLS`, `ApiKey` / `RIZZSERVER_API_KEY`, `AutoStart` / `RIZZSERVER_AUTOSTART` (start the runtime with the process; default true).
 
-Deployment files: `Dockerfile` and `deploy/docker-compose.yml`, `deploy/rizzserver.service` (systemd), `deploy/install-windows-service.ps1`. Build a self-contained service with `./installer/publish-portable.ps1 -Component Service`. The Docker, systemd and Windows-service files have not been run yet; the service itself is tested as a plain process (Windows). The desktop app is not yet a remote client of this API.
+### Manage a service from the desktop app
 
+**File ▸ Connect to Service…** (address + API key) opens the project of a headless service in the normal UI. You edit a copy exactly as for a local project; **Save (Ctrl+S)** pushes it to the service, which validates it and answers with the problems if it refuses. **Start/Stop Runtime** control the service's runtime, and the tree's status dots, the Quick Client (values stream in live, writes go through the service to the device) and the event log show the service's. The status bar shows `Remote: <address>` and `● unsaved changes` when your copy differs from the service; Reload, Disconnect and closing ask before discarding. **Disconnect** returns to your local project; the service keeps running, and closing the app never stops it. If the service becomes unreachable the status bar says so and the app reconnects by itself.
+
+- Editing is locked while the service's runtime runs, like locally; a start or stop done by someone else shows up within a second or two.
+- Users are managed on the service directly (the password is hashed there); serial ports can't be listed for the remote machine, so the wizard asks you to type the port name.
+- The API key is never saved, only the last address. Use HTTPS (reverse proxy) when connecting across a network.
+
+Deployment files: `Dockerfile` and `deploy/docker-compose.yml`, `deploy/rizzserver.service` (systemd), `deploy/install-windows-service.ps1`. Build a self-contained service with `./installer/publish-portable.ps1 -Component Service`. The Docker, systemd and Windows-service files have not been run yet; the service itself is tested as a plain process (Windows).
 ## Windows installer
 
 ```powershell

@@ -19,6 +19,7 @@ public partial class MainWindow : Window
         ApplyPanes();
         DataContextChanged += (_, _) => Wire();
         Closing += (_, _) => SavePanes();
+        Closing += OnClosingConfirmRemote;
         LogSplitter.DragCompleted += (_, _) => SavePanes();
         TreeSplitter.DragCompleted += (_, _) => SavePanes();
 
@@ -33,6 +34,22 @@ public partial class MainWindow : Window
                     grid.ScrollIntoView(entries[^1], null);
             }, DispatcherPriority.Background);
         };
+    }
+
+    private bool _closeApproved;
+
+    /// <summary>Closing with edits that were never pushed to a remote service asks first.</summary>
+    private async void OnClosingConfirmRemote(object? sender, WindowClosingEventArgs e)
+    {
+        var app = AppState.Instance;
+        if (_closeApproved || !app.IsRemote || !app.IsDirty) return;
+
+        e.Cancel = true;
+        if (await Dialogs.ConfirmAsync(this, "Close RizzServer? Changes that are not saved to the service will be lost.", "Discard"))
+        {
+            _closeApproved = true;
+            Close();
+        }
     }
 
     /// <summary>Restores the tree width and event-log height from the last run.</summary>
@@ -75,6 +92,8 @@ public partial class MainWindow : Window
             if (e.PropertyName == nameof(MainViewModel.LogVisible)) ApplyLogVisibility(vm.LogVisible);
         };
         vm.Confirm = text => Dialogs.ConfirmAsync(this, text);
+        vm.ConfirmWith = (text, button) => Dialogs.ConfirmAsync(this, text, button);
+        vm.ShowConnect = async () => await new ConnectWindow().ShowDialog<bool>(this);
         vm.Prompt = (title, prompt, initial, validate) => Dialogs.PromptAsync(this, title, prompt, initial, validate);
         vm.ShowAbout = () => new AboutWindow().ShowDialog(this);
         vm.ShowWizard = wizard => WizardWindow.RunAsync(this, wizard);
@@ -155,11 +174,11 @@ public static class Dialogs
         return result;
     }
 
-    public static async Task<bool> ConfirmAsync(Window owner, string text)
+    public static async Task<bool> ConfirmAsync(Window owner, string text, string button = "Delete")
     {
         var result = false;
         var dlg = Build("Confirm", text, owner, out var buttons);
-        var yes = new Button { Content = "Delete", MinWidth = 80 };
+        var yes = new Button { Content = button, MinWidth = 80 };
         var no = new Button { Content = "Cancel", MinWidth = 80 };
         yes.Click += (_, _) => { result = true; dlg.Close(); };
         no.Click += (_, _) => dlg.Close();

@@ -1,4 +1,5 @@
 using RizzServer.Core;
+using RizzServer.Core.Api;
 using RizzServer.Server;
 
 namespace RizzServer.Service.Api;

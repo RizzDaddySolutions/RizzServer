@@ -94,6 +94,8 @@ public sealed partial class ChannelSettingsStep : WizardStep
 
     private static string DetectPorts()
     {
+        // The ports that matter are the service machine's, which can't be listed from here.
+        if (AppState.Instance.IsRemote) return "Enter the port name as the service machine knows it (for example COM3 or /dev/ttyUSB0).";
         try
         {
             var ports = SerialPort.GetPortNames().OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray();

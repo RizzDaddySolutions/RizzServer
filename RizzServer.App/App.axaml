@@ -107,6 +107,14 @@
       <Setter Property="CornerRadius" Value="8" />
     </Style>
 
+    <!-- "Remote" marker in the status bar: the RizzDaddy blue -->
+    <Style Selector="Border.chip">
+      <Setter Property="Background" Value="{StaticResource RizzSelection}" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="8,1" />
+    </Style>
+    <Style Selector="Border.chip > TextBlock"><Setter Property="Foreground" Value="White" /></Style>
+
     <!-- Section header bar, as in property panes -->
     <Style Selector="Border.section">
       <Setter Property="Background" Value="{DynamicResource HeaderBrush}" />

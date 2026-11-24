@@ -38,6 +38,9 @@ public sealed class UiSettings
     public double LogHeight { get; set; } = 190;
     public bool LogVisible { get; set; } = true;
 
+    /// <summary>Last service address typed in Connect to Service (the API key is never saved).</summary>
+    public string LastServiceUrl { get; set; } = "";
+
     public static UiSettings Load()
     {
         try

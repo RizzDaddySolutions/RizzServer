@@ -5,7 +5,7 @@
         xmlns:local="using:RizzServer.App"
         x:Class="RizzServer.App.Views.MainWindow"
         Icon="/Assets/icon.ico"
-        Title="RizzServer — OPC UA Gateway" Width="1280" Height="820" MinWidth="900" MinHeight="560"
+        Title="{Binding App.WindowTitle}" Width="1280" Height="820" MinWidth="900" MinHeight="560"
         WindowStartupLocation="CenterScreen">
 
   <Window.KeyBindings>
@@ -27,6 +27,10 @@
     <Menu DockPanel.Dock="Top" Background="{DynamicResource PanelBrush}">
       <MenuItem Header="_File">
         <MenuItem Header="_Save Project" InputGesture="Ctrl+S" Command="{Binding SaveCommand}" />
+        <Separator />
+        <MenuItem Header="Connect to _Service…" Command="{Binding ConnectCommand}" />
+        <MenuItem Header="_Reload from Service" Command="{Binding ReloadCommand}" />
+        <MenuItem Header="_Disconnect from Service" Command="{Binding DisconnectCommand}" />
         <Separator />
         <MenuItem Header="_Import Tags from CSV…" Command="{Binding ImportTagsCommand}" />
         <MenuItem Header="E_xport Tags to CSV…" Command="{Binding ExportTagsCommand}" />
@@ -104,13 +108,18 @@
     <!-- Status bar -->
     <Border DockPanel.Dock="Bottom" Background="{DynamicResource HeaderBrush}" BorderBrush="{DynamicResource LineBrush}"
             BorderThickness="0,1,0,0" Padding="8,3">
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-        <TextBlock Text="{Binding App.Status}" />
-        <TextBlock Grid.Column="1" Text="{Binding App.EndpointUrl}" Margin="0,0,24,0" Foreground="{DynamicResource MutedBrush}" />
-        <TextBlock Grid.Column="2" Margin="0,0,24,0">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Text="{Binding App.Status}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="1" Text="{Binding App.EndpointUrl}" Margin="12,0,24,0" Foreground="{DynamicResource MutedBrush}" />
+        <TextBlock Grid.Column="2" Text="● unsaved changes" Margin="0,0,24,0" Foreground="#B7791F" IsVisible="{Binding App.IsDirty}"
+                   ToolTip.Tip="This copy differs from the service. Save (Ctrl+S) pushes it." />
+        <Border Grid.Column="3" Classes="chip" IsVisible="{Binding App.IsRemote}" Margin="0,0,16,0">
+          <TextBlock Text="{Binding App.ConnectionText}" />
+        </Border>
+        <TextBlock Grid.Column="4" Margin="0,0,24,0">
           <Run Text="Active tags: " /><Run Text="{Binding App.RunningTags.Count, Mode=OneWay}" />
         </TextBlock>
-        <TextBlock Grid.Column="3" Text="{Binding App.RuntimeText}" FontWeight="SemiBold" />
+        <TextBlock Grid.Column="5" Text="{Binding App.RuntimeText}" FontWeight="SemiBold" />
       </Grid>
     </Border>
 

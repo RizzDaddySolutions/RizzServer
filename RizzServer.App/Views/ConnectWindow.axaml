@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RizzServer.App.Views.ConnectWindow"
+        Icon="/Assets/icon.ico"
+        Title="Connect to Service" Width="520" SizeToContent="Height"
+        CanResize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24,20" Spacing="12">
+    <TextBlock Text="Connect to a headless RizzServer" Classes="pageTitle" FontSize="20" />
+    <TextBlock Classes="caption" TextWrapping="Wrap" Opacity="0.75"
+               Text="Edit and run the project of a RizzServer service (Windows service, Linux daemon or Docker container) from this window. Close this app any time; the service keeps running." />
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="Service address" />
+      <TextBox x:Name="UrlBox" PlaceholderText="http://192.168.1.20:5080" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Text="API key" />
+      <TextBox x:Name="KeyBox" PasswordChar="●" PlaceholderText="print it on the service with: rizzserver-service --show-api-key" />
+      <TextBlock Classes="caption" Text="The key is not saved." />
+    </StackPanel>
+
+    <TextBlock x:Name="ErrorText" Foreground="IndianRed" TextWrapping="Wrap" IsVisible="False" />
+
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,4,0,0">
+      <Button x:Name="ConnectButton" Content="Connect" Classes="accent" IsDefault="True" MinWidth="96"
+              HorizontalContentAlignment="Center" Click="OnConnect" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" MinWidth="96"
+              HorizontalContentAlignment="Center" Click="OnCancel" />
+    </StackPanel>
+  </StackPanel>
+</Window>

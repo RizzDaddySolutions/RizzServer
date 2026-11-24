@@ -1,7 +1,6 @@
 using System.Text.Json;
-using RizzServer.Core;
 
-namespace RizzServer.Service.Api;
+namespace RizzServer.Core.Api;
 
 public sealed record ErrorBody(string Error, IReadOnlyList<string>? Details = null);
 
@@ -58,3 +57,5 @@ public sealed class ProjectBody
 public sealed record UserBody(string Username, string Password);
 
 public sealed record WriteBody(JsonElement Value);
+
+public sealed record LogLine(DateTimeOffset Time, string Level, string Source, string Message);

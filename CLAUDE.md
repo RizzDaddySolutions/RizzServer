@@ -36,7 +36,7 @@ Service tests: start the real `rizzserver-service` process with `RIZZSERVER_DATA
 - `RizzServer.Core` – models, `GatewayEngine`, driver catalog, CSV import
 - `RizzServer.Drivers` – protocol drivers (Modbus, RS-232 variants, MQTT, OPC DA, OPC UA client)
 - `RizzServer.Server` – OPC UA server (OPC Foundation stack pinned to 1.5.378.x) and `GatewayRuntime` (config + engine + OPC UA host, shared by the UI and the service)
-- `RizzServer.App` – Avalonia UI
+- `RizzServer.App` – Avalonia UI. It talks to the project through `Backends/IGatewayBackend`: `LocalBackend` (in-process runtime) or `RemoteBackend` (a headless service via `Core/Api/ServiceClient`, with a local copy of the project, polling + SSE). Don't reach for the engine directly from views/view models; go through `AppState` (`App.WriteAsync`, `App.SaveAsync`, `Backend`). `Core/Api` holds the API models shared with the service.
 - `RizzServer.Service` – headless host: REST API (`/api/v1`, minimal APIs), API-key auth, Windows/systemd service support. New configuration or runtime features should be reachable through the API too, and validated by `Core/ConfigValidator`.
 - `installer/` – `build.ps1` (Windows MSI), `publish-portable.ps1` (win/linux/osx archives)
 

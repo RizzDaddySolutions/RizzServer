@@ -5,7 +5,7 @@
     <Border DockPanel.Dock="Top" Classes="section"><TextBlock Text="Project Properties" /></Border>
     <StackPanel>
       <Grid ColumnDefinitions="200,*">
-        <Border Classes="prop-label"><TextBlock Text="Project file" /></Border>
+        <Border Classes="prop-label"><TextBlock Text="Project location" /></Border>
         <Border Grid.Column="1" Classes="prop-value"><TextBlock Text="{Binding ProjectPath}" Margin="8,5" /></Border>
       </Grid>
       <Grid ColumnDefinitions="200,*">
