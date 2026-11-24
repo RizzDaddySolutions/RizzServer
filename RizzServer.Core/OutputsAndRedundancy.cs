@@ -40,6 +40,7 @@ public static class NorthboundCatalog
             S("PublishMode", "Publish", "OnChange", ["OnChange", "Interval"]),
             S("IntervalMs", "Interval (ms, Interval mode)", "5000"),
             S("Filter", "Tags (path pattern, * wildcard; ; separates)", "*"),
+            S("StatusTopic", "Status topic (online/offline, last will)", "rizzserver/status"),
             S("Retain", "Retain", "True", Bools),
             S("Qos", "QoS", "1", ["0", "1", "2"]),
         ],

@@ -84,6 +84,7 @@ var api = app.MapGroup("/api/v1");
 RuntimeApi.Map(api);
 ConfigApi.Map(api);
 ProjectApi.Map(api);
+OutputsApi.Map(api);
 
 await app.RunAsync();
 return 0;

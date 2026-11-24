@@ -18,11 +18,13 @@ public sealed class GatewayRuntime
         _log = loggers.CreateLogger("RizzServer");
         Engine = new GatewayEngine(config, new DriverFactory(loggers), loggers.CreateLogger("Engine"));
         Host = new OpcUaHost(Engine, loggers.CreateLogger("OPC UA"));
+        Outputs = new NorthboundManager(Engine, loggers);
     }
 
     public GatewayConfig Config { get; }
     public GatewayEngine Engine { get; }
     public OpcUaHost Host { get; }
+    public NorthboundManager Outputs { get; }
 
     public bool IsRunning { get; private set; }
     public DateTimeOffset? StartedAt { get; private set; }
@@ -46,6 +48,7 @@ public sealed class GatewayRuntime
                 LastError = null;
                 await Engine.StartAsync();
                 await Host.StartAsync();
+                await Outputs.StartAsync();
                 IsRunning = true;
                 StartedAt = DateTimeOffset.UtcNow;
             }
@@ -88,6 +91,7 @@ public sealed class GatewayRuntime
 
     private async Task StopCoreAsync()
     {
+        try { await Outputs.StopAsync(); } catch (Exception ex) { _log.LogWarning(ex, "Outputs stop"); }
         try { await Host.StopAsync(); } catch (Exception ex) { _log.LogWarning(ex, "OPC UA stop"); }
         try { await Engine.StopAsync(); } catch (Exception ex) { _log.LogWarning(ex, "Engine stop"); }
         IsRunning = false;
