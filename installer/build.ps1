@@ -4,6 +4,8 @@
 .EXAMPLE
   ./installer/build.ps1                 # version from Directory.Build.props
   ./installer/build.ps1 -Version 1.2.0
+  # Equivalent without the script:
+  dotnet publish RizzServer.App -p:PublishProfile=Msi
 #>
 param(
     [string]$Version,
