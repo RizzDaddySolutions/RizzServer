@@ -89,6 +89,7 @@ public static class ConfigStore
         live.Server.AutoAcceptCertificates = candidate.Server.AutoAcceptCertificates;
         live.Server.NamespaceUri = candidate.Server.NamespaceUri;
         live.Server.AllowAnonymous = candidate.Server.AllowAnonymous;
+        live.Server.PublishOnChange = candidate.Server.PublishOnChange;
 
         live.Server.Users.Clear();
         foreach (var u in candidate.Server.Users) live.Server.Users.Add(u);

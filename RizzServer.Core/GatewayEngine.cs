@@ -172,7 +172,10 @@ public sealed class GatewayEngine
         var coerced = scaled is null ? null : TagValueConverter.Coerce(scaled, tag.DataType);
         if (value is not null && coerced is null) quality = TagQuality.Bad;
         if (quality == TagQuality.Good && coerced is not null && !TagScaling.WithinRange(tag, coerced)) quality = TagQuality.Uncertain;
-        Apply(rt, coerced ?? rt.Value, quality);
+        var next = coerced ?? rt.Value;
+        // One driver thread owns a tag, so reading rt here is race-free. Stats above still count the poll.
+        if (Config.Server.PublishOnChange && rt.Quality == quality && Equals(rt.Value, next)) return;
+        Apply(rt, next, quality);
     }
 
     private void Apply(TagRuntime rt, object? value, TagQuality quality)

@@ -31,6 +31,11 @@
         <Border Classes="prop-label"><TextBlock Text="Allow anonymous access" /></Border>
         <Border Grid.Column="1" Classes="prop-value"><CheckBox IsChecked="{Binding Server.AllowAnonymous}" VerticalAlignment="Center" /></Border>
       </Grid>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="Publish only on change" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><CheckBox IsChecked="{Binding Server.PublishOnChange}" VerticalAlignment="Center"
+                  ToolTip.Tip="Skip values and qualities that did not change since the last poll. Much lighter for very large projects; outputs then no longer see every poll." /></Border>
+      </Grid>
 
       <Border Classes="section"><TextBlock Text="User Manager" /></Border>
       <TextBlock Margin="8,6" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"

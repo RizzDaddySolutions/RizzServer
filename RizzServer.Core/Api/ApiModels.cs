@@ -22,6 +22,7 @@ public sealed class ServerBody
     public bool AutoAcceptCertificates { get; set; } = true;
     public string NamespaceUri { get; set; } = "urn:rizzserver:data";
     public bool AllowAnonymous { get; set; } = true;
+    public bool PublishOnChange { get; set; }
 
     /// <summary>Read-only: names only. Manage users with /api/v1/server/users.</summary>
     public List<string> Users { get; set; } = new();
@@ -37,6 +38,7 @@ public sealed class ServerBody
         AutoAcceptCertificates = s.AutoAcceptCertificates,
         NamespaceUri = s.NamespaceUri,
         AllowAnonymous = s.AllowAnonymous,
+        PublishOnChange = s.PublishOnChange,
         Users = s.Users.Select(u => u.Username).ToList(),
         Roles = s.Users.ToDictionary(u => u.Username, u => u.Role.ToString()),
     };
@@ -49,6 +51,7 @@ public sealed class ServerBody
         s.AutoAcceptCertificates = AutoAcceptCertificates;
         s.NamespaceUri = NamespaceUri;
         s.AllowAnonymous = AllowAnonymous;
+        s.PublishOnChange = PublishOnChange;
     }
 }
 
