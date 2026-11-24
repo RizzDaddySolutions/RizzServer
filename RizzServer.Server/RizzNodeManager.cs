@@ -8,7 +8,25 @@ namespace RizzServer.Server;
 public sealed class RizzNodeManager : CustomNodeManager2
 {
     private readonly GatewayEngine _engine;
-    private readonly Dictionary<TagRuntime, BaseDataVariableState> _nodes = new();
+    private readonly Dictionary<TagRuntime, Slot> _nodes = new();
+
+    // Driver threads must not take the node manager's lock for every value: with tens of thousands of tags that lock is shared
+    // with the OPC UA stack's reads and sampling. They park the latest value in the tag's slot (lock-free) and one flush loop
+    // applies the batches, so repeated changes between two flushes collapse into one node update.
+    private static readonly TimeSpan FlushInterval = TimeSpan.FromMilliseconds(20);
+    private const int FlushChunk = 1000;   // nodes updated per lock acquisition, so readers are never blocked for long
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Slot> _dirty = new();
+    private CancellationTokenSource? _flushCts;
+    private Task? _flushLoop;
+
+    private sealed record Snapshot(object? Value, TagQuality Quality, DateTime Timestamp);
+
+    private sealed class Slot(BaseDataVariableState node)
+    {
+        public BaseDataVariableState Node { get; } = node;
+        public Snapshot? Pending;     // latest value not yet applied to the node
+        public int Queued;            // 1 while the slot is in the dirty queue
+    }
 
     public RizzNodeManager(IServerInternal server, ApplicationConfiguration configuration, GatewayEngine engine, string namespaceUri)
         : base(server, configuration, namespaceUri)
@@ -37,17 +55,22 @@ public sealed class RizzNodeManager : CustomNodeManager2
                 {
                     var deviceFolder = CreateFolder(channelFolder, $"{channel.Key}.{device.Key}", device.Key);
                     foreach (var tag in device)
-                        _nodes[tag] = CreateVariable(deviceFolder, tag);
+                        _nodes[tag] = new Slot(CreateVariable(deviceFolder, tag));
                 }
             }
         }
 
+        _flushCts = new CancellationTokenSource();
+        _flushLoop = Task.Run(() => FlushLoopAsync(_flushCts.Token));
         _engine.TagUpdated += OnTagUpdated;
     }
 
     public override void DeleteAddressSpace()
     {
         _engine.TagUpdated -= OnTagUpdated;
+        _flushCts?.Cancel();
+        try { _flushLoop?.Wait(TimeSpan.FromSeconds(5)); } catch (AggregateException) { }
+        _flushCts?.Dispose();
         base.DeleteAddressSpace();
     }
 
@@ -164,19 +187,49 @@ public sealed class RizzNodeManager : CustomNodeManager2
 
     private void OnTagUpdated(TagRuntime tag)
     {
-        if (!_nodes.TryGetValue(tag, out var node)) return;
-        lock (Lock)
+        if (!_nodes.TryGetValue(tag, out var slot)) return;
+        Volatile.Write(ref slot.Pending, new Snapshot(tag.Value, tag.Quality, tag.Timestamp));
+        if (Interlocked.Exchange(ref slot.Queued, 1) == 0) _dirty.Enqueue(slot);
+    }
+
+    private async Task FlushLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(FlushInterval);
+        try
         {
-            node.Value = tag.Value;
-            node.StatusCode = tag.Quality switch
+            while (await timer.WaitForNextTickAsync(ct))
             {
-                TagQuality.Good => StatusCodes.Good,
-                TagQuality.Uncertain => StatusCodes.Uncertain,
-                _ => tag.Value is null ? StatusCodes.BadWaitingForInitialData : StatusCodes.BadNoCommunication,
-            };
-            node.Timestamp = tag.Timestamp;
-            node.ClearChangeMasks(SystemContext, false);
+                // Only what was queued when the pass started: updates arriving meanwhile wait for the next tick.
+                var batch = new List<Slot>(Math.Min(_dirty.Count, 65536));
+                for (var n = _dirty.Count; n > 0 && _dirty.TryDequeue(out var slot); n--) batch.Add(slot);
+
+                for (var i = 0; i < batch.Count; i += FlushChunk)
+                {
+                    lock (Lock)
+                    {
+                        for (var j = i; j < Math.Min(i + FlushChunk, batch.Count); j++)
+                            Apply(batch[j]);
+                    }
+                }
+            }
         }
+        catch (OperationCanceledException) { }
+    }
+
+    private void Apply(Slot slot)
+    {
+        Volatile.Write(ref slot.Queued, 0);   // an update from here on queues the slot again
+        if (Interlocked.Exchange(ref slot.Pending, null) is not { } snap) return;
+        var node = slot.Node;
+        node.Value = snap.Value;
+        node.StatusCode = snap.Quality switch
+        {
+            TagQuality.Good => StatusCodes.Good,
+            TagQuality.Uncertain => StatusCodes.Uncertain,
+            _ => snap.Value is null ? StatusCodes.BadWaitingForInitialData : StatusCodes.BadNoCommunication,
+        };
+        node.Timestamp = snap.Timestamp;
+        node.ClearChangeMasks(SystemContext, false);
     }
 
     private static NodeId MapDataType(TagDataType t) => t switch
