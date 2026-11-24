@@ -66,6 +66,13 @@ public sealed class ProjectBody
     public RedundancySettings? Redundancy { get; set; }
 }
 
+/// <summary>A channel without its devices' tags: what listing endpoints return with <c>?summary=true</c>.</summary>
+public sealed record ChannelSummary(string Name, DriverType DriverType, bool Enabled, string? PluginId,
+    Dictionary<string, string> Settings, int DeviceCount, int TagCount);
+
+public sealed record DeviceSummary(string Name, bool Enabled, int ScanRateMs, string? Template,
+    Dictionary<string, string> Settings, int TagCount);
+
 public sealed record UserBody(string Username, string Password, UserRole? Role = null);
 
 public sealed record WriteBody(JsonElement Value);

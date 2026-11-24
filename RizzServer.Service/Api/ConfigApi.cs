@@ -86,7 +86,9 @@ public static class ConfigApi
         }, c => Results.Ok(ServerBody.From(c.Server).Users)));
 
         // ---- channels ----
-        cfg.MapGet("/channels", (GatewayRuntime rt) => Results.Ok(rt.Config.Channels.Select(Mask)));
+        cfg.MapGet("/channels", (GatewayRuntime rt, HttpContext http, int? skip, int? take, bool? summary) =>
+            Page(http, rt.Config.Channels, skip, take, c => summary == true ? Summarize(c) : Mask(c)))
+        .WithSummary("List channels. Optional: skip/take to page (total in X-Total-Count); summary=true returns counts instead of devices and tags.");
 
         cfg.MapGet("/channels/{channel}", (string channel, GatewayRuntime rt) =>
             FindChannel(rt.Config, channel) is { } ch ? Results.Ok(Mask(ch)) : NotFound($"Channel '{channel}'"));
@@ -117,8 +119,11 @@ public static class ConfigApi
         }, _ => Results.NoContent()));
 
         // ---- devices ----
-        cfg.MapGet("/channels/{channel}/devices", (string channel, GatewayRuntime rt) =>
-            FindChannel(rt.Config, channel) is { } ch ? Results.Ok(Mask(ch).Devices) : NotFound($"Channel '{channel}'"));
+        cfg.MapGet("/channels/{channel}/devices", (string channel, GatewayRuntime rt, HttpContext http, int? skip, int? take, bool? summary) =>
+            FindChannel(rt.Config, channel) is { } ch
+                ? Page(http, ch.Devices, skip, take, d => summary == true ? Summarize(ch, d) : Mask(ch, d))
+                : NotFound($"Channel '{channel}'"))
+        .WithSummary("List a channel's devices. Optional: skip/take to page (total in X-Total-Count); summary=true returns tag counts instead of tags.");
 
         cfg.MapGet("/channels/{channel}/devices/{device}", (string channel, string device, GatewayRuntime rt) =>
             FindChannel(rt.Config, channel) is { } ch && FindDevice(Mask(ch), device) is { } d ? Results.Ok(d) : NotFound($"Device '{channel}.{device}'"));
@@ -153,8 +158,11 @@ public static class ConfigApi
         // ---- tags ----
         const string tagsRoute = "/channels/{channel}/devices/{device}/tags";
 
-        cfg.MapGet(tagsRoute, (string channel, string device, GatewayRuntime rt) =>
-            FindChannel(rt.Config, channel) is { } ch && FindDevice(ch, device) is { } d ? Results.Ok(d.Tags) : NotFound($"Device '{channel}.{device}'"));
+        cfg.MapGet(tagsRoute, (string channel, string device, GatewayRuntime rt, HttpContext http, int? skip, int? take) =>
+            FindChannel(rt.Config, channel) is { } ch && FindDevice(ch, device) is { } d
+                ? Page(http, d.Tags, skip, take, t => t)
+                : NotFound($"Device '{channel}.{device}'"))
+        .WithSummary("List a device's tags. Optional: skip/take to page (total in X-Total-Count).");
 
         cfg.MapPut(tagsRoute, (string channel, string device, List<TagConfig> body, ConfigEditor editor) => editor.EditAsync(c =>
         {

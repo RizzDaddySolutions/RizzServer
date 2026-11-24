@@ -56,6 +56,48 @@ public sealed class ConfigEditor(GatewayRuntime runtime)
         return copy;
     }
 
+    /// <summary>Counts instead of tags: cheap even for a channel with hundreds of thousands of tags (no deep copy).</summary>
+    public static ChannelSummary Summarize(ChannelConfig channel)
+    {
+        var settings = new Dictionary<string, string>(channel.Settings);
+        MaskSettings(settings, DriverCatalog.For(channel).ChannelSettings);
+        return new(channel.Name, channel.DriverType, channel.Enabled, channel.PluginId, settings,
+            channel.Devices.Count, channel.Devices.Sum(d => d.Tags.Count));
+    }
+
+    public static DeviceSummary Summarize(ChannelConfig channel, DeviceConfig device)
+    {
+        var settings = new Dictionary<string, string>(device.Settings);
+        MaskSettings(settings, DriverCatalog.For(channel).DeviceSettings);
+        return new(device.Name, device.Enabled, device.ScanRateMs, device.Template, settings, device.Tags.Count);
+    }
+
+    /// <summary>One device with secrets masked (copies only that device, not the whole channel).</summary>
+    public static DeviceConfig Mask(ChannelConfig channel, DeviceConfig device)
+    {
+        var copy = ConfigStore.Clone(device);
+        MaskSettings(copy.Settings, DriverCatalog.For(channel).DeviceSettings);
+        return copy;
+    }
+
+    /// <summary>
+    /// Optional paging for list endpoints: <c>skip</c> and <c>take</c> (1–<see cref="MaxPage"/>). Without them the whole list is
+    /// returned, as before. The total is always sent in the <c>X-Total-Count</c> header.
+    /// </summary>
+    public const int MaxPage = 10_000;
+
+    public static IResult Page<T>(HttpContext http, IReadOnlyList<T> all, int? skip, int? take, Func<T, object> project)
+    {
+        if (skip is < 0) return Json(400, new ErrorBody("skip must be 0 or more."));
+        if (take is < 1 or > MaxPage) return Json(400, new ErrorBody($"take must be between 1 and {MaxPage}."));
+        http.Response.Headers["X-Total-Count"] = all.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var start = Math.Min(skip ?? 0, all.Count);
+        var count = Math.Min(take ?? all.Count, all.Count - start);
+        var page = new List<object>(count);
+        for (var i = start; i < start + count; i++) page.Add(project(all[i]));
+        return Results.Ok(page);
+    }
+
     public static NorthboundConfig Mask(NorthboundConfig output)
     {
         var copy = ConfigStore.Clone(output);
