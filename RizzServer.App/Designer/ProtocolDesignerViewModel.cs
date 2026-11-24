@@ -83,7 +83,22 @@ public sealed partial class ProtocolDesignerViewModel : ObservableObject
             Reframe(autoDetectIfNeeded: true);
         };
         _refresh.Start();
+        Text = new TextDesignerViewModel(this);
         RefreshPorts();
+    }
+
+    /// <summary>The text / command-response half of the designer.</summary>
+    public TextDesignerViewModel Text { get; }
+
+    /// <summary>0 = binary frames, 1 = text and commands; decides what "Create channel" builds.</summary>
+    [ObservableProperty] private int _activeTab;
+
+    /// <summary>Writes to the device through the open capture (terminal commands). False when nothing is open.</summary>
+    public bool TrySend(byte[] data)
+    {
+        if (_source is null) return false;
+        try { _source.Send(data); return true; }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or TimeoutException or UnauthorizedAccessException) { return false; }
     }
 
     public AppState App => AppState.Instance;
@@ -144,6 +159,7 @@ public sealed partial class ProtocolDesignerViewModel : ObservableObject
         _source.DataReceived -= OnData;
         _source.Dispose();
         _source = null;
+        Text.StopPolling();
         IsCapturing = false;
         SourceStatus = $"Stopped. {TotalBytes} bytes captured.";
         Reframe(autoDetectIfNeeded: true);
@@ -164,6 +180,7 @@ public sealed partial class ProtocolDesignerViewModel : ObservableObject
     private void OnData(byte[] data, DateTime time)
     {
         lock (_lock) _chunks.Add((time, data));
+        Text.OnReceived(data, time);
         Dispatcher.UIThread.Post(() => { TotalBytes += data.Length; });
         _dirty = true;
     }
@@ -179,6 +196,7 @@ public sealed partial class ProtocolDesignerViewModel : ObservableObject
         }
         TotalBytes = bytes.Length;
         _autoDetected = false;
+        Text.LoadText(bytes);
         SourceStatus = $"{bytes.Length} bytes from {description}.";
         Reframe(autoDetectIfNeeded: true);
     }
@@ -188,6 +206,7 @@ public sealed partial class ProtocolDesignerViewModel : ObservableObject
     {
         StopCapture();
         lock (_lock) _chunks.Clear();
+        Text.Reset();
         TotalBytes = 0;
         _autoDetected = false;
         _frames = [];
@@ -628,17 +647,18 @@ public sealed partial class ProtocolDesignerViewModel : ObservableObject
     {
         if (!App.IsEditable) { CreateMessage = "Stop the runtime first: editing is locked while it runs."; return; }
 
-        var (channel, errors) = BuildChannel();
+        var (channel, errors) = ActiveTab == 1 ? Text.BuildChannel() : BuildChannel();
         if (channel is null) { CreateMessage = string.Join(" ", errors); return; }
 
         App.Config.Channels.Add(channel);
         NavHost.Current?.SelectDevice(channel, channel.Devices[0]);
-        CreateMessage = $"Created channel '{channel.Name}' with {channel.Devices[0].Tags.Count} tag(s). Check the port settings, then Start Runtime.";
+        CreateMessage = $"Created channel '{channel.Name}' ({DriverCatalog.Get(channel.DriverType).DisplayName}) with {channel.Devices[0].Tags.Count} tag(s). Check the port settings, then Start Runtime.";
         App.LogInfo($"Protocol Designer created channel {channel.Name}");
     }
 
     public void Close()
     {
+        Text.Close();
         StopCapture();
         _refresh.Stop();
     }

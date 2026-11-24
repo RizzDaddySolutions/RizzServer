@@ -10,6 +10,9 @@ public interface IByteSource : IDisposable
     /// <summary>Raised on a background thread with each chunk as it arrived and when.</summary>
     event Action<byte[], DateTime>? DataReceived;
 
+    /// <summary>Writes bytes to the device (a terminal command). Throws <see cref="InvalidOperationException"/> when the source isn't open.</summary>
+    void Send(byte[] data);
+
     /// <summary>Opens the source. Throws <see cref="IOException"/> or <see cref="UnauthorizedAccessException"/> when it can't.</summary>
     void Start();
 }
@@ -37,6 +40,12 @@ public sealed class SerialByteSource(string portName, int baudRate, int dataBits
         };
         port.Open();
         _port = port;
+    }
+
+    public void Send(byte[] data)
+    {
+        if (_port is not { IsOpen: true } port) throw new InvalidOperationException("The port is not open.");
+        port.Write(data, 0, data.Length);
     }
 
     public void Dispose()

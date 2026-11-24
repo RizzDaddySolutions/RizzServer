@@ -41,9 +41,9 @@ Configuration is stored in `%AppData%\RizzServer\config.json` (Windows) or `~/.c
 
 **View ▸ Theme: System / Light / Dark** switches the look; System follows the operating system and is the default. The window remembers its size, position and maximised state. Default endpoint: `opc.tcp://<host>:4840/RizzServer`.
 
-## Protocol Designer (binary serial protocols)
+## Protocol Designer (serial protocols)
 
-**Tools ▸ Protocol Designer…** reverse-engineers an undocumented serial protocol and turns it into a ready-to-run channel for the RS-232 binary frames driver.
+**Tools ▸ Protocol Designer…** reverse-engineers an undocumented serial protocol and turns it into a ready-to-run channel. The **Binary frames** tab targets the RS-232 binary frames driver; the **Text & commands** tab (below) targets the RS-232 text and command/response drivers. The capture bar is shared.
 
 1. **Capture** bytes from a serial port, open a capture file (raw bytes or a hex dump), or paste hex. Captures can be saved as hex text.
 2. **Framing**: *Detect* works out the header, the fixed length or the length field, and the checksum (Sum8, Xor8, CRC16-Modbus) from the data, and tells you how sure it is. Everything stays editable; *IdleGap* mode splits frames at line silences for protocols with no header.
@@ -51,7 +51,15 @@ Configuration is stored in `%AppData%\RizzServer\config.json` (Windows) or `~/.c
 4. **Fields**: add readings as fields, or let **Suggest** propose them (counters are recognised and skipped). Give them names and scales.
 5. **Create channel in project** builds the channel, device and tags (`offset:type[:scale]` addresses) with the detected framing and your port settings. The driver cuts and decodes frames with the same code the designer used, so what you saw is what you get.
 
-Detection is heuristic: it needs a few dozen frames, and when a protocol has no checksum the exact frame start can be ambiguous, so check the header column colours. Live capture needs a local serial port, so it is disabled while connected to a remote service (files and pasted hex still work). Capture from a real device has not been tried yet; the tests use synthetic protocols and a fake serial source.
+### Text & commands tab
+
+For line-based protocols. A **terminal** sends a command (escapes `\r \n \xHH`, choose the command terminator) once or on a poll timer, and shows everything sent and received. Replies are grouped per command; lines that arrive on their own are grouped as the device's stream. The **line ending** and **separator** are detected from the data (and stay editable).
+
+Click a reply to see it split into values with their numeric reading. **Add as field** picks a whole column (index) or, when the number is mixed with text (`58%`, `T=21.5`), a pattern; **Whole reply** is for commands that answer with just the value; **Suggest** offers a field for every value that changes. Each field shows its live value from the latest reply.
+
+**Create channel** builds an RS-232 command/response channel (`command|parse` addresses) when fields have commands, or an RS-232 text channel (bare parse addresses) for a device that talks on its own. A channel can't mix the two, and patterns in command addresses can't contain `|`. The drivers extract values with the same code the designer shows.
+
+Detection is heuristic: it needs a few dozen frames, and when a protocol has no checksum the exact frame start can be ambiguous, so check the header column colours. Live capture needs a local serial port, so it is disabled while connected to a remote service (files and pasted hex still work). Capture from a real device has not been tried yet; the tests use synthetic protocols and a fake serial source that answers commands.
 
 ## Headless service and REST API
 

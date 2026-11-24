@@ -24,6 +24,14 @@ public partial class ProtocolDesignerWindow : Window
         RebuildColumns();
         Closed += (_, _) => vm.Close();
 
+        // keep the newest terminal line in view
+        vm.Text.Entries.CollectionChanged += (_, e) =>
+        {
+            if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Add || e.NewItems is not [var added]) return;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (vm.Text.Entries.Contains(added)) TextLog.ScrollIntoView(added, null); },
+                Avalonia.Threading.DispatcherPriority.Background);
+        };
+
         FramesGrid.CellPointerPressed += (_, e) =>
         {
             if (e.Column?.Tag is int offset) vm.InspectOffset = offset;
@@ -89,6 +97,8 @@ public partial class ProtocolDesignerWindow : Window
     {
         if (PortPicker.SelectedItem is string port) _vm.PortName = port;
     }
+
+    private void OnTokenDoubleTapped(object? sender, TappedEventArgs e) => _vm.Text.AddFieldFromTokenCommand.Execute(null);
 
     private void OnReadingDoubleTapped(object? sender, TappedEventArgs e) => _vm.AddFieldFromReadingCommand.Execute(null);
 }

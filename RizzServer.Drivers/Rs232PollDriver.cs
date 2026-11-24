@@ -81,7 +81,7 @@ public sealed class Rs232PollDriver : DriverBase
                 try
                 {
                     var reply = await Task.Run(() => Exchange(command), ct);
-                    var value = Extract(reply, parse);
+                    var value = TextExtract.Extract(reply, parse, _separator);
                     if (value is null)
                     {
                         Log.LogWarning("[{Conn}] {Tag}: reply '{Reply}' did not match '{Parse}'", Config.Name, tag.Name, reply, parse);
@@ -108,22 +108,6 @@ public sealed class Rs232PollDriver : DriverBase
         port.DiscardInBuffer();
         port.Write(Unescape(command) + _commandTerminator);
         return port.ReadTo(_replyTerminator);
-    }
-
-    private string? Extract(string reply, string parse)
-    {
-        if (parse.Length == 0) return reply.Trim();
-        if (parse.StartsWith("re:", StringComparison.OrdinalIgnoreCase))
-        {
-            var m = Regex.Match(reply, parse[3..]);
-            return !m.Success ? null : m.Groups.Count > 1 ? m.Groups[1].Value : m.Value;
-        }
-        if (int.TryParse(parse, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
-        {
-            var fields = reply.Split(_separator);
-            return index < fields.Length ? fields[index].Trim() : null;
-        }
-        return null;
     }
 
     public override async Task WriteAsync(TagConfig tag, object value, CancellationToken ct = default)

@@ -24,7 +24,7 @@
 
     <!-- Capture bar -->
     <Border DockPanel.Dock="Top" Classes="section">
-      <TextBlock Text="1  Capture" />
+      <TextBlock Text="1  Capture (shared by both tabs)" />
     </Border>
     <Grid DockPanel.Dock="Top" Margin="12,8" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
       <StackPanel Orientation="Horizontal" Spacing="6" IsEnabled="{Binding CanCapture}">
@@ -47,6 +47,9 @@
                  Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Right" />
     </Grid>
 
+    <TabControl SelectedIndex="{Binding ActiveTab, Mode=TwoWay}">
+      <TabItem Header="Binary frames">
+        <DockPanel>
     <!-- Framing bar -->
     <Border DockPanel.Dock="Top" Classes="section">
       <TextBlock Text="2  Framing — how the byte stream is cut into frames" />
@@ -137,5 +140,119 @@
         </DataGrid>
       </Grid>
     </Grid>
+        </DockPanel>
+      </TabItem>
+
+      <TabItem Header="Text &amp; commands">
+        <DockPanel DataContext="{Binding Text}">
+          <Border DockPanel.Dock="Top" Classes="section">
+            <TextBlock Text="2  Terminal — send commands, or just capture a device that talks on its own" />
+          </Border>
+          <StackPanel DockPanel.Dock="Top" Margin="12,8" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Command" VerticalAlignment="Center" />
+              <TextBox Width="230" Text="{Binding CommandText}" PlaceholderText="READ?   (escapes: \r \n \xHH)">
+                <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding SendCommand}" /></TextBox.KeyBindings>
+              </TextBox>
+              <ComboBox Width="96" ItemsSource="{Binding CommandTerminators}" SelectedItem="{Binding CommandTerminator}"
+                        ToolTip.Tip="Appended to the command when it is sent" />
+              <Button Content="Send" Command="{Binding SendCommand}" Classes="accent" />
+              <TextBox Width="62" Text="{Binding PollMs}" ToolTip.Tip="Poll interval (ms)" />
+              <TextBlock Text="ms" VerticalAlignment="Center" />
+              <Button Content="{Binding PollButtonText}" Command="{Binding TogglePollingCommand}"
+                      ToolTip.Tip="Send the command repeatedly to collect samples" />
+              <Border Width="1" Margin="8,2" Background="{DynamicResource LineBrush}" />
+              <TextBlock Text="Line end" VerticalAlignment="Center" />
+              <TextBox Width="64" Text="{Binding Terminator}" ToolTip.Tip="How replies end; detected automatically" />
+              <TextBlock Text="Separator" VerticalAlignment="Center" />
+              <TextBox Width="64" Text="{Binding Separator}" ToolTip.Tip="What splits a reply into values; detected automatically" />
+              <Button Content="Detect" Command="{Binding DetectCommand}" />
+            </StackPanel>
+            <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
+          </StackPanel>
+
+          <Border DockPanel.Dock="Top" Classes="section">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="3  Lines — click a reply to split it into values" />
+              <TextBlock Grid.Column="1" FontWeight="Normal" Text="{Binding Partial, StringFormat='waiting: {0}'}"
+                         IsVisible="{Binding Partial.Length}" />
+            </Grid>
+          </Border>
+
+          <Grid ColumnDefinitions="*,6,440">
+            <DataGrid x:Name="TextLog" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                      AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0"
+                      FontFamily="Consolas,Menlo,monospace">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="130" />
+                <DataGridTextColumn Header="" Binding="{Binding Direction}" Width="44" />
+                <DataGridTextColumn Header="Text" Binding="{Binding Text}" Width="*" />
+              </DataGrid.Columns>
+            </DataGrid>
+
+            <GridSplitter Grid.Column="1" Width="6" Background="{DynamicResource ChromeBrush}" />
+
+            <Grid Grid.Column="2" RowDefinitions="Auto,130,Auto,*,Auto,*">
+              <Border Classes="section"><TextBlock Text="Commands and replies" /></Border>
+              <DataGrid Grid.Row="1" ItemsSource="{Binding Exchanges}" SelectedItem="{Binding SelectedExchange, Mode=TwoWay}"
+                        AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0,1">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Command" Binding="{Binding Title}" Width="130" />
+                  <DataGridTextColumn Header="Replies" Binding="{Binding Count}" Width="90" />
+                  <DataGridTextColumn Header="Last reply" Binding="{Binding Last}" Width="*" />
+                </DataGrid.Columns>
+              </DataGrid>
+
+              <Border Grid.Row="2" Classes="section">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="Values in the reply" />
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                    <Button Classes="tool" Content="Add as field" Command="{Binding AddFieldFromTokenCommand}" />
+                    <Button Classes="tool" Content="Whole reply" Command="{Binding AddWholeReplyCommand}"
+                            ToolTip.Tip="For replies that are just the value" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <DataGrid Grid.Row="3" ItemsSource="{Binding Tokens}" SelectedItem="{Binding SelectedToken, Mode=TwoWay}"
+                        AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0,1"
+                        DoubleTapped="OnTokenDoubleTapped">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="56" />
+                  <DataGridTextColumn Header="Text" Binding="{Binding Text}" Width="*" />
+                  <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="100" />
+                </DataGrid.Columns>
+              </DataGrid>
+
+              <Border Grid.Row="4" Classes="section">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="Fields (become tags)" />
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                    <Button Classes="tool" Content="Suggest" Command="{Binding SuggestFieldsCommand}"
+                            ToolTip.Tip="Offer a field for every value that changes" />
+                    <Button Classes="tool" Content="Remove" Command="{Binding RemoveFieldCommand}" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <DataGrid Grid.Row="5" ItemsSource="{Binding Fields}" SelectedItem="{Binding SelectedField, Mode=TwoWay}"
+                        AutoGenerateColumns="False" HeadersVisibility="Column" BorderThickness="0">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="130" />
+                  <DataGridTextColumn Header="Command" Binding="{Binding Command}" Width="90" />
+                  <DataGridTextColumn Header="Parse" Binding="{Binding Parse}" Width="*" />
+                  <DataGridTemplateColumn Header="Type" Width="92">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.DataTypes}" SelectedItem="{Binding DataType}" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTextColumn Header="Now" Binding="{Binding Value}" Width="84" IsReadOnly="True" />
+                </DataGrid.Columns>
+              </DataGrid>
+            </Grid>
+          </Grid>
+        </DockPanel>
+      </TabItem>
+    </TabControl>
   </DockPanel>
 </Window>

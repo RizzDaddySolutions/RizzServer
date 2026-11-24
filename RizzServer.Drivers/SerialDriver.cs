@@ -83,24 +83,8 @@ public sealed class SerialDriver : DriverBase
 
     private void HandleLine(string line)
     {
-        string[]? fields = null;
         foreach (var tag in Tags)
-        {
-            var addr = tag.Address.Trim();
-            string? value = null;
-            if (addr.Equals("line", StringComparison.OrdinalIgnoreCase)) value = line;
-            else if (addr.StartsWith("re:", StringComparison.OrdinalIgnoreCase))
-            {
-                var m = Regex.Match(line, addr[3..]);
-                if (m.Success) value = m.Groups.Count > 1 ? m.Groups[1].Value : m.Value;
-            }
-            else if (int.TryParse(addr, out var index))
-            {
-                fields ??= line.Split(_separator);
-                if (index >= 0 && index < fields.Length) value = fields[index].Trim();
-            }
-            if (value is not null) Publish(tag, value);
-        }
+            if (TextExtract.Extract(line, tag.Address, _separator) is { } value) Publish(tag, value);
     }
 
     public override Task WriteAsync(TagConfig tag, object value, CancellationToken ct = default)
