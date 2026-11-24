@@ -63,6 +63,16 @@ public sealed class RizzNodeManager : CustomNodeManager2
         _flushCts = new CancellationTokenSource();
         _flushLoop = Task.Run(() => FlushLoopAsync(_flushCts.Token));
         _engine.TagUpdated += OnTagUpdated;
+
+        // Values published before the address space existed (a tag whose value never changes is not published again with
+        // PublishOnChange) would otherwise leave the node at "waiting for initial data" for good. Subscribing comes first, so
+        // nothing is missed; a newer value that arrives meanwhile wins over this seed.
+        foreach (var (tag, slot) in _nodes)
+        {
+            if (tag.Value is null && tag.Quality == TagQuality.Bad) continue;
+            Interlocked.CompareExchange(ref slot.Pending, new Snapshot(tag.Value, tag.Quality, tag.Timestamp), null);
+            if (Interlocked.Exchange(ref slot.Queued, 1) == 0) _dirty.Enqueue(slot);
+        }
     }
 
     public override void DeleteAddressSpace()
