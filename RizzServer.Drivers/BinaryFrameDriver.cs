@@ -44,24 +44,30 @@ public sealed class BinaryFrameDriver : DriverBase
 
         _checksum = Enum.TryParse<ChecksumKind>(Config.Setting("Checksum", "None"), true, out var kind) ? kind : ChecksumKind.None;
         _checksumStart = Config.SettingInt("ChecksumStart", 0);
-
-        _assembler = new FrameAssembler
-        {
-            Header = FrameAssembler.ParseHex(Config.Setting("Header")),
-            FixedLength = Config.SettingInt("FrameLength", 0),
-            LengthOffset = Config.SettingInt("LengthOffset", 2),
-            LengthSize = Config.SettingInt("LengthSize", 1) == 2 ? 2 : 1,
-            LengthBigEndian = _bigEndian,
-            LengthAdjust = Config.SettingInt("LengthAdjust", 0),
-            Checksum = _checksum,
-            ChecksumStart = _checksumStart,
-        };
+        _assembler = BuildAssembler(Config);
 
         // Receive-only stream: one device per port.
         _lease = SerialPortHub.Acquire(Config, exclusive: true);
         _port = _lease.Port;
         _port.DataReceived += OnData;
         return Task.CompletedTask;
+    }
+
+    /// <summary>The frame cutter for a device's settings. Shared with the Protocol Designer so a design behaves identically at runtime.</summary>
+    public static FrameAssembler BuildAssembler(ConnectionConfig config)
+    {
+        var bigEndian = !config.Setting("ByteOrder", "BigEndian").Equals("LittleEndian", StringComparison.OrdinalIgnoreCase);
+        return new FrameAssembler
+        {
+            Header = FrameAssembler.ParseHex(config.Setting("Header")),
+            FixedLength = config.SettingInt("FrameLength", 0),
+            LengthOffset = config.SettingInt("LengthOffset", 2),
+            LengthSize = config.SettingInt("LengthSize", 1) == 2 ? 2 : 1,
+            LengthBigEndian = bigEndian,
+            LengthAdjust = config.SettingInt("LengthAdjust", 0),
+            Checksum = Enum.TryParse<ChecksumKind>(config.Setting("Checksum", "None"), true, out var kind) ? kind : ChecksumKind.None,
+            ChecksumStart = config.SettingInt("ChecksumStart", 0),
+        };
     }
 
     protected override Task DisconnectAsync()

@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using RizzServer.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace RizzServer.App.ViewModels;
@@ -23,6 +24,8 @@ public sealed partial class MenuEntry : ObservableObject
 public interface INavHost
 {
     void Select(NavNode node);
+    /// <summary>Selects a device in the tree (used after something else created it).</summary>
+    void SelectDevice(ChannelConfig channel, DeviceConfig device);
     Task NewChannelAsync();
     Task NewDeviceAsync(ChannelNode channel);
     Task DeleteNodeAsync(NavNode node);

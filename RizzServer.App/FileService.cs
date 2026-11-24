@@ -15,6 +15,9 @@ public static class FileService
     /// <summary>(Title, text) → shown until the user dismisses it.</summary>
     public static Func<string, string, Task>? Message { get; set; }
 
+    /// <summary>Reads text from the system clipboard (null when it has none).</summary>
+    public static Func<Task<string?>>? PasteText { get; set; }
+
     /// <summary>Puts text on the system clipboard.</summary>
     public static Func<string, Task>? CopyText { get; set; }
 }

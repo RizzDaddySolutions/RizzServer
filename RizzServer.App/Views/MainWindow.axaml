@@ -56,6 +56,9 @@
         <MenuItem Header="Theme: Dark" Command="{Binding SetThemeCommand}" CommandParameter="Dark"
                   ToggleType="Radio" GroupName="Theme" IsChecked="{Binding IsThemeDark, Mode=OneWay}" />
       </MenuItem>
+      <MenuItem Header="_Tools">
+        <MenuItem Header="_Protocol Designer…" Command="{Binding OpenDesignerCommand}" />
+      </MenuItem>
       <MenuItem Header="_Runtime">
         <MenuItem Header="_Start" Command="{Binding App.StartCommand}" />
         <MenuItem Header="S_top" Command="{Binding App.StopCommand}" />

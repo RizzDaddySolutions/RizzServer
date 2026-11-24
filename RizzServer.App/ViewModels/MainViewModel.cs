@@ -64,6 +64,12 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
     public Func<Task>? ShowAbout { get; set; }
     public Action? Exit { get; set; }
 
+    /// <summary>Opens (or focuses) the Protocol Designer; set by the window.</summary>
+    public Action? ShowDesigner { get; set; }
+
+    [RelayCommand]
+    private void OpenDesigner() => ShowDesigner?.Invoke();
+
     [ObservableProperty] private NavNode? _selectedNode;
     [ObservableProperty] private bool _logVisible = UiSettings.Instance.LogVisible;
 
@@ -211,6 +217,12 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
 
     // ---- INavHost: used by the tree's right-click menus ----
     public void Select(NavNode node) => SelectedNode = node;
+
+    public void SelectDevice(ChannelConfig channel, DeviceConfig device)
+    {
+        if (_connectivity.NodeFor(channel) is { } channelNode)
+            SelectedNode = (NavNode?)channelNode.NodeFor(device) ?? channelNode;
+    }
     public Task NewChannelAsync() => AddChannelAsync();
     public Task NewDeviceAsync(ChannelNode channel) => RunDeviceWizardAsync(channel);
 

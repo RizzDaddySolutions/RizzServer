@@ -37,6 +37,7 @@ public partial class MainWindow : Window
     }
 
     private bool _closeApproved;
+    private Designer.ProtocolDesignerWindow? _designer;
 
     /// <summary>Closing with edits that were never pushed to a remote service asks first.</summary>
     private async void OnClosingConfirmRemote(object? sender, WindowClosingEventArgs e)
@@ -97,6 +98,14 @@ public partial class MainWindow : Window
         vm.Prompt = (title, prompt, initial, validate) => Dialogs.PromptAsync(this, title, prompt, initial, validate);
         vm.ShowAbout = () => new AboutWindow().ShowDialog(this);
         vm.ShowWizard = wizard => WizardWindow.RunAsync(this, wizard);
+
+        FileService.PasteText = async () => Clipboard is { } c ? await c.TryGetTextAsync() : null;
+        vm.ShowDesigner = () =>
+        {
+            if (_designer is { IsVisible: true }) { _designer.Activate(); return; }
+            _designer = new Designer.ProtocolDesignerWindow();
+            _designer.Show(this);
+        };
 
         FileService.CopyText = async text =>
         {

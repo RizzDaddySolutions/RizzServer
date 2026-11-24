@@ -198,6 +198,7 @@
       <Setter Property="Background" Value="{DynamicResource ColumnHeaderBrush}" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="8,0" />   <!-- the default leaves no room for text in narrow columns -->
     </Style>
     <Style Selector="DataGridCell ComboBox">
       <Setter Property="BorderThickness" Value="0" />

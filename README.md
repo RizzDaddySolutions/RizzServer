@@ -41,6 +41,18 @@ Configuration is stored in `%AppData%\RizzServer\config.json` (Windows) or `~/.c
 
 **View ▸ Theme: System / Light / Dark** switches the look; System follows the operating system and is the default. The window remembers its size, position and maximised state. Default endpoint: `opc.tcp://<host>:4840/RizzServer`.
 
+## Protocol Designer (binary serial protocols)
+
+**Tools ▸ Protocol Designer…** reverse-engineers an undocumented serial protocol and turns it into a ready-to-run channel for the RS-232 binary frames driver.
+
+1. **Capture** bytes from a serial port, open a capture file (raw bytes or a hex dump), or paste hex. Captures can be saved as hex text.
+2. **Framing**: *Detect* works out the header, the fixed length or the length field, and the checksum (Sum8, Xor8, CRC16-Modbus) from the data, and tells you how sure it is. Everything stays editable; *IdleGap* mode splits frames at line silences for protocols with no header.
+3. **Frames** appear as a hex table with each byte coloured by role (header, length, checksum, your fields). Click a byte and the **inspector** shows every way to read it (8/16/32-bit, either byte order, signed, float) with last/min/max and a smoothness score. A real measurement moves steadily between frames, a misread one doesn't. Implausible float readings are scored 0.
+4. **Fields**: add readings as fields, or let **Suggest** propose them (counters are recognised and skipped). Give them names and scales.
+5. **Create channel in project** builds the channel, device and tags (`offset:type[:scale]` addresses) with the detected framing and your port settings. The driver cuts and decodes frames with the same code the designer used, so what you saw is what you get.
+
+Detection is heuristic: it needs a few dozen frames, and when a protocol has no checksum the exact frame start can be ambiguous, so check the header column colours. Live capture needs a local serial port, so it is disabled while connected to a remote service (files and pasted hex still work). Capture from a real device has not been tried yet; the tests use synthetic protocols and a fake serial source.
+
 ## Headless service and REST API
 
 `RizzServer.Service` runs the same runtime (drivers + OPC UA server) with no UI: as a console process, a Windows service, a systemd service or in Docker. It loads the project file, starts it, and exposes a REST API for configuration and monitoring.

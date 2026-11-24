@@ -1,0 +1,141 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RizzServer.App.Designer.ProtocolDesignerWindow"
+        Icon="/Assets/icon.ico"
+        Title="Protocol Designer — binary serial protocols"
+        Width="1240" Height="780" MinWidth="980" MinHeight="600"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel>
+    <!-- Create bar -->
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource ChromeBrush}" BorderBrush="{DynamicResource LineBrush}"
+            BorderThickness="0,1,0,0" Padding="12,8">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+        <TextBlock Text="New channel" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" />
+        <TextBox Grid.Column="1" Width="170" Text="{Binding ChannelName}" PlaceholderText="channel name" />
+        <TextBlock Grid.Column="2" Text="device" VerticalAlignment="Center" Margin="12,0,8,0" />
+        <TextBox Grid.Column="3" Width="130" Text="{Binding DeviceName}" />
+        <TextBlock Grid.Column="4" Text="{Binding CreateMessage}" Margin="16,0" VerticalAlignment="Center" TextWrapping="Wrap"
+                   Foreground="{DynamicResource MutedBrush}" />
+        <Button Grid.Column="5" Content="Create channel in project" Classes="accent" Command="{Binding CreateChannelCommand}"
+                IsEnabled="{Binding App.IsEditable}" />
+      </Grid>
+    </Border>
+
+    <!-- Capture bar -->
+    <Border DockPanel.Dock="Top" Classes="section">
+      <TextBlock Text="1  Capture" />
+    </Border>
+    <Grid DockPanel.Dock="Top" Margin="12,8" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
+      <StackPanel Orientation="Horizontal" Spacing="6" IsEnabled="{Binding CanCapture}">
+        <TextBox Width="104" Text="{Binding PortName}" PlaceholderText="COM3 or /dev/ttyUSB0" ToolTip.Tip="Serial port name" />
+        <ComboBox x:Name="PortPicker" Width="120" ItemsSource="{Binding Ports}" PlaceholderText="detected ports"
+                  SelectionChanged="OnPortPicked" ToolTip.Tip="Pick a detected port" />
+        <TextBox Width="70" Text="{Binding BaudRate}" ToolTip.Tip="Baud rate" />
+        <TextBox Width="34" Text="{Binding DataBits}" ToolTip.Tip="Data bits" />
+        <ComboBox Width="86" ItemsSource="{Binding Parities}" SelectedItem="{Binding Parity}" ToolTip.Tip="Parity" />
+        <ComboBox Width="116" ItemsSource="{Binding StopBitsOptions}" SelectedItem="{Binding StopBits}" ToolTip.Tip="Stop bits" />
+        <Button Content="{Binding CaptureButtonText}" Command="{Binding ToggleCaptureCommand}" Classes="accent" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="14,0,0,0">
+        <Button Content="Open file…" Command="{Binding OpenFileCommand}" />
+        <Button Content="Paste hex" Command="{Binding PasteHexCommand}" />
+        <Button Content="Save capture…" Command="{Binding SaveCaptureCommand}" />
+        <Button Content="Clear" Command="{Binding ClearCommand}" />
+      </StackPanel>
+      <TextBlock Grid.Column="5" Text="{Binding SourceStatus}" VerticalAlignment="Center" Margin="16,0,0,0"
+                 Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Right" />
+    </Grid>
+
+    <!-- Framing bar -->
+    <Border DockPanel.Dock="Top" Classes="section">
+      <TextBlock Text="2  Framing — how the byte stream is cut into frames" />
+    </Border>
+    <Grid DockPanel.Dock="Top" Margin="12,8" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <ComboBox Width="108" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" />
+        <TextBlock Text="Header" VerticalAlignment="Center" />
+        <TextBox Width="96" Text="{Binding HeaderHex}" PlaceholderText="AA55" />
+        <TextBlock Text="Length" VerticalAlignment="Center" />
+        <TextBox Width="46" Text="{Binding FrameLength}" ToolTip.Tip="Fixed frame length; 0 = read it from a length field" />
+        <TextBlock Text="or field at" VerticalAlignment="Center" />
+        <TextBox Width="38" Text="{Binding LengthOffset}" />
+        <TextBox Width="34" Text="{Binding LengthSize}" ToolTip.Tip="Length field size (1 or 2 bytes)" />
+        <TextBox Width="38" Text="{Binding LengthAdjust}" ToolTip.Tip="Added to the field value to get the total frame length" />
+        <TextBlock Text="Checksum" VerticalAlignment="Center" />
+        <ComboBox Width="120" ItemsSource="{Binding Checksums}" SelectedItem="{Binding Checksum}" />
+        <TextBox Width="38" Text="{Binding ChecksumStart}" ToolTip.Tip="First byte covered by the checksum" />
+        <TextBlock Text="Idle gap ms" VerticalAlignment="Center" />
+        <TextBox Width="52" Text="{Binding IdleGapMs}" ToolTip.Tip="Used in IdleGap mode: a silence this long ends a frame" />
+        <Button Content="Apply" Command="{Binding ApplyCommand}" />
+        <Button Content="Detect" Command="{Binding DetectCommand}" Classes="accent" ToolTip.Tip="Work out header, length and checksum from the capture" />
+      </StackPanel>
+      <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,6,0,0" Text="{Binding FramingSummary}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource MutedBrush}" />
+    </Grid>
+
+    <!-- Main: frames | inspector + fields -->
+    <Border DockPanel.Dock="Top" Classes="section">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="3  Frames — click a byte to inspect it" />
+        <TextBlock Grid.Column="1" FontWeight="Normal">
+          <Run Text="{Binding FrameCount, Mode=OneWay}" /><Run Text=" frames, " /><Run Text="{Binding TotalBytes, Mode=OneWay}" /><Run Text=" bytes" />
+        </TextBlock>
+      </Grid>
+    </Border>
+
+    <Grid ColumnDefinitions="*,6,420" Margin="0">
+      <!-- A hand-made header strip scrolls with the grid: DataGrid headers leave no room for text in byte-wide columns. -->
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <DockPanel x:Name="FramesPanel" MinWidth="200" HorizontalAlignment="Left">
+          <StackPanel x:Name="HeaderStrip" DockPanel.Dock="Top" Orientation="Horizontal" Height="42"
+                      Background="{DynamicResource ColumnHeaderBrush}" />
+          <DataGrid x:Name="FramesGrid" ItemsSource="{Binding Rows}" AutoGenerateColumns="False" IsReadOnly="True"
+                    HeadersVisibility="None" GridLinesVisibility="Vertical" BorderThickness="0" CanUserSortColumns="False"
+                    SelectionMode="Single" FontFamily="Consolas,Menlo,monospace" RowHeight="22" />
+        </DockPanel>
+      </ScrollViewer>
+
+      <GridSplitter Grid.Column="1" Width="6" Background="{DynamicResource ChromeBrush}" />
+
+      <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,Auto,Auto,*">
+        <Border Classes="section"><TextBlock Text="Inspector" /></Border>
+        <TextBlock Grid.Row="1" Margin="10,6" Text="{Binding InspectSummary}" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
+        <DataGrid Grid.Row="2" ItemsSource="{Binding Readings}" SelectedItem="{Binding SelectedReading, Mode=TwoWay}"
+                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0,1"
+                  DoubleTapped="OnReadingDoubleTapped">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="84" />
+            <DataGridTextColumn Header="Last" Binding="{Binding Last}" Width="*" />
+            <DataGridTextColumn Header="Min" Binding="{Binding Min}" Width="70" />
+            <DataGridTextColumn Header="Max" Binding="{Binding Max}" Width="84" />
+            <DataGridTextColumn Header="Smooth" Binding="{Binding Smoothness}" Width="100" />
+          </DataGrid.Columns>
+        </DataGrid>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="8,6">
+          <Button Content="Add selected reading as field" Command="{Binding AddFieldFromReadingCommand}" />
+        </StackPanel>
+
+        <Border Grid.Row="4" Classes="section">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="Fields (become tags)" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+              <Button Classes="tool" Content="Suggest" Command="{Binding SuggestFieldsCommand}" ToolTip.Tip="Offer a field for every changing byte" />
+              <Button Classes="tool" Content="Remove" Command="{Binding RemoveFieldCommand}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+        <DataGrid Grid.Row="5" ItemsSource="{Binding Fields}" SelectedItem="{Binding SelectedField, Mode=TwoWay}"
+                  AutoGenerateColumns="False" HeadersVisibility="Column" BorderThickness="0,0,0,0">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+            <DataGridTextColumn Header="At" Binding="{Binding Offset}" Width="62" />
+            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="84" />
+            <DataGridTextColumn Header="Scale" Binding="{Binding Scale}" Width="76" />
+            <DataGridTextColumn Header="Now" Binding="{Binding Value}" Width="80" IsReadOnly="True" />
+          </DataGrid.Columns>
+        </DataGrid>
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>
