@@ -19,6 +19,10 @@
     <DataTemplate DataType="vm:ChannelNode"><v:ChannelView /></DataTemplate>
     <DataTemplate DataType="vm:DeviceNode"><v:DeviceView /></DataTemplate>
     <DataTemplate DataType="vm:ServerNode"><v:ServerView /></DataTemplate>
+    <DataTemplate DataType="vm:OutputsNode"><v:OutputsView /></DataTemplate>
+    <DataTemplate DataType="vm:OutputNode"><v:OutputView /></DataTemplate>
+    <DataTemplate DataType="vm:TemplatesNode"><v:TemplatesView /></DataTemplate>
+    <DataTemplate DataType="vm:TemplateNode"><v:TemplateView /></DataTemplate>
     <DataTemplate DataType="vm:QuickClientNode"><v:QuickClientView /></DataTemplate>
   </Window.DataTemplates>
 

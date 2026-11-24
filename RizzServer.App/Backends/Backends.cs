@@ -35,6 +35,16 @@ public interface IGatewayBackend : IDisposable
     Task<string?> SaveAsync();
 
     Task WriteAsync(TagRuntime tag, object value, CancellationToken ct = default);
+
+    // ---- commissioning, outputs, security ----
+    Task<IReadOnlyList<DeviceDiagnostics>> GetDiagnosticsAsync();
+    Task<IReadOnlyList<DeviceEvent>> GetEventsAsync(string channel, string device);
+
+    /// <summary>Connects to the device on its own and reads its tags. A remote service tests the device as stored there: save first.</summary>
+    Task<DeviceTest> TestDeviceAsync(ChannelConfig channel, DeviceConfig device);
+
+    Task<IReadOnlyList<OutputStatus>> GetOutputStatusAsync();
+    Task<IReadOnlyList<Finding>> GetSecurityReportAsync();
 }
 
 /// <summary>The project file on this machine and the in-process runtime.</summary>
@@ -76,6 +86,15 @@ public sealed class LocalBackend(GatewayRuntime runtime) : IGatewayBackend
     }
 
     public Task WriteAsync(TagRuntime tag, object value, CancellationToken ct = default) => Runtime.Engine.WriteAsync(tag, value, ct);
+
+    public Task<IReadOnlyList<DeviceDiagnostics>> GetDiagnosticsAsync() => Task.FromResult(Runtime.Engine.GetDiagnostics());
+    public Task<IReadOnlyList<DeviceEvent>> GetEventsAsync(string channel, string device) => Task.FromResult(Runtime.Engine.GetEvents(channel, device));
+
+    public async Task<DeviceTest> TestDeviceAsync(ChannelConfig channel, DeviceConfig device) =>
+        await Commissioning.TestAsync(Runtime.Engine.Factory, channel, device, TimeSpan.FromSeconds(8));
+
+    public Task<IReadOnlyList<OutputStatus>> GetOutputStatusAsync() => Task.FromResult(Runtime.Outputs.Statuses);
+    public Task<IReadOnlyList<Finding>> GetSecurityReportAsync() => Task.FromResult<IReadOnlyList<Finding>>(SecurityReport.Check(Runtime.Config, null));
 
     public void Dispose() { }
 }

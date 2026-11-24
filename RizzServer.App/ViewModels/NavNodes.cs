@@ -310,6 +310,7 @@ public sealed partial class ChannelNode : NavNode
     protected override IEnumerable<MenuEntry> CreateMenu()
     {
         yield return ItemAsync("New Device…", () => Host?.NewDeviceAsync(this) ?? Task.CompletedTask, () => Editable && CanAddDevice);
+        yield return ItemAsync("Add Device from Template…", () => Host?.AddDeviceFromTemplateAsync(this) ?? Task.CompletedTask, () => Editable && CanAddDevice);
         yield return Sep();
         yield return ItemAsync("Rename…", () => Host?.RenameNodeAsync(this) ?? Task.CompletedTask, () => Editable);
         _toggleEntry = Item(ToggleHeader, () => Config.Enabled = !Config.Enabled, () => Editable);
@@ -469,6 +470,64 @@ public sealed partial class DeviceNode : NavNode
     [NotifyCanExecuteChangedFor(nameof(RemoveTagCommand), nameof(CopyAddressCommand))]
     private TagConfig? _selectedTag;
 
+    // ---- commissioning: live health and a connection test ----
+    [ObservableProperty] private string _diagnosticsText = "Start the runtime to see live statistics.";
+    [ObservableProperty] private string _eventsText = "";
+    [ObservableProperty] private string _testText = "";
+    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(TestConnectionCommand))] private bool _isTesting;
+
+    /// <summary>Called about once a second while this device is the selected node.</summary>
+    public async Task RefreshDiagnosticsAsync()
+    {
+        if (!App.IsRunning)
+        {
+            DiagnosticsText = "Start the runtime to see live statistics.";
+            EventsText = "";
+            return;
+        }
+        try
+        {
+            var d = (await App.Backend.GetDiagnosticsAsync()).FirstOrDefault(x =>
+                string.Equals(x.Channel, _channel.Name, StringComparison.OrdinalIgnoreCase) && string.Equals(x.Device, Config.Name, StringComparison.OrdinalIgnoreCase));
+            if (d is null) { DiagnosticsText = Config.Enabled ? "This device is not part of the running project (save and restart)." : "Disabled."; return; }
+
+            var up = d.ConnectedSince is { } since ? $"connected for {FormatSpan(DateTimeOffset.UtcNow - since)}" : d.State.ToLowerInvariant();
+            DiagnosticsText =
+                $"State: {up} · {d.Reconnects} reconnect(s)\n" +
+                $"Polls: {d.Polls} ({d.PollErrors} failed) · last {d.LastPollMs:0.#} ms · average {d.AveragePollMs:0.#} ms\n" +
+                $"Tags: {d.GoodTags} good, {d.BadTags} not good · {d.UpdatesPerSecond:0.#} updates/s";
+            var events = await App.Backend.GetEventsAsync(_channel.Name, Config.Name);
+            EventsText = string.Join("\n", events.TakeLast(6).Select(e => $"{e.Time.ToLocalTime():HH:mm:ss}  {e.Level,-5} {e.Text}"));
+        }
+        catch (Exception ex) { DiagnosticsText = "Statistics are not available: " + ex.Message; }
+    }
+
+    private static string FormatSpan(TimeSpan t) => t.TotalHours >= 1 ? $"{(int)t.TotalHours}h {t.Minutes}m" : t.TotalMinutes >= 1 ? $"{t.Minutes}m {t.Seconds}s" : $"{t.Seconds}s";
+
+    [RelayCommand(CanExecute = nameof(CanTest))]
+    private async Task TestConnectionAsync()
+    {
+        if (App.IsRemote && App.IsDirty)
+        {
+            TestText = "The service tests the device as stored there. Save the project first.";
+            return;
+        }
+        IsTesting = true;
+        TestText = "Connecting…";
+        try
+        {
+            var r = await App.Backend.TestDeviceAsync(_channel, Config);
+            var lines = new List<string> { (r.Connected ? "✔ " : "✘ ") + r.Message + $" ({r.ElapsedMs} ms)" };
+            foreach (var t in r.Tags)
+                lines.Add($"   {t.Name} ({t.Address}): " + (t.Quality == "Good" ? $"{t.Value}" : $"{t.Quality}{(t.Error is null ? "" : " — " + t.Error)}"));
+            TestText = string.Join("\n", lines);
+        }
+        catch (Exception ex) { TestText = "✘ " + ex.Message; }
+        finally { IsTesting = false; }
+    }
+
+    private bool CanTest() => !IsTesting;
+
     public override void Detach()
     {
         Config.PropertyChanged -= OnConfigChanged;
@@ -497,6 +556,7 @@ public sealed partial class DeviceNode : NavNode
         _toggleEntry = Item(ToggleHeader, () => Config.Enabled = !Config.Enabled, () => Editable);
         yield return _toggleEntry;
         yield return Item("Duplicate Device", () => Host?.DuplicateDevice(this), CanDuplicate);
+        yield return ItemAsync("Save as Template…", () => Host?.SaveDeviceAsTemplateAsync(this) ?? Task.CompletedTask, () => Editable);
         yield return Sep();
         yield return ItemAsync("Delete Device", () => Host?.DeleteNodeAsync(this) ?? Task.CompletedTask, () => Editable);
     }
@@ -642,6 +702,25 @@ public sealed partial class ServerNode : NavNode
         if (FileService.CopyText is { } copy) await copy(App.EndpointUrl);
     }
 
+    public IReadOnlyList<UserRole> Roles { get; } = Enum.GetValues<UserRole>();
+    [ObservableProperty] private UserRole _newRole = UserRole.Operator;
+
+    // ---- security review ----
+    public ObservableCollection<Finding> Findings { get; } = new();
+    [ObservableProperty] private string _reviewMessage = "";
+
+    [RelayCommand]
+    private async Task ReviewSecurityAsync()
+    {
+        Findings.Clear();
+        try
+        {
+            foreach (var f in await App.Backend.GetSecurityReportAsync()) Findings.Add(f);
+            ReviewMessage = Findings.Count == 0 ? "No findings: nothing obviously exposed." : $"{Findings.Count} finding(s), most serious first.";
+        }
+        catch (Exception ex) { ReviewMessage = "The review could not be made: " + ex.Message + (App.IsRemote ? " (it needs an Admin key)" : ""); }
+    }
+
     [ObservableProperty] private string _newUsername = "";
     [ObservableProperty] private string _newPassword = "";
     [ObservableProperty] private string _userMessage = "";
@@ -664,7 +743,7 @@ public sealed partial class ServerNode : NavNode
         if (App.Remote is { } remote)
         {
             // The service hashes the password; only names come back.
-            try { await remote.AddUserAsync(name, NewPassword); }
+            try { await remote.AddUserAsync(name, NewPassword, NewRole); }
             catch (RizzServer.Core.Api.ServiceApiException ex) { UserMessage = ex.FullMessage; return; }
             UserMessage = $"User {name} saved on the service.";
         }
@@ -672,8 +751,8 @@ public sealed partial class ServerNode : NavNode
         {
             var hash = PasswordHasher.Hash(NewPassword);
             var existing = Server.Users.FirstOrDefault(u => u.Username == name);
-            if (existing is not null) { existing.PasswordHash = hash; UserMessage = $"Password updated for {name}."; }
-            else { Server.Users.Add(new UserAccount { Username = name, PasswordHash = hash }); UserMessage = $"User {name} added."; }
+            if (existing is not null) { existing.PasswordHash = hash; existing.Role = NewRole; UserMessage = $"Password and role updated for {name}."; }
+            else { Server.Users.Add(new UserAccount { Username = name, PasswordHash = hash, Role = NewRole }); UserMessage = $"User {name} added as {NewRole}."; }
             App.Save();
         }
 

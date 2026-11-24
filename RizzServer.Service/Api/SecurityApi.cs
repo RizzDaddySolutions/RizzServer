@@ -14,7 +14,7 @@ public static class SecurityApi
     {
         var g = api.MapGroup("").WithTags("Security");
 
-        g.MapGet("/security/report", (GatewayRuntime rt, ServiceSettings settings) => Results.Ok(SecurityReport.Check(rt.Config, settings)))
+        g.MapGet("/security/report", (GatewayRuntime rt, ServiceSettings settings) => Results.Ok(SecurityReport.Check(rt.Config, settings.Exposure())))
          .WithSummary("What is exposed and how to fix it, most serious first.");
 
         g.MapGet("/security/keys", (ServiceSettings settings) => Results.Ok(settings.ApiKeys.Select(k => new { k.Name, role = k.Role.ToString(), k.Created })))

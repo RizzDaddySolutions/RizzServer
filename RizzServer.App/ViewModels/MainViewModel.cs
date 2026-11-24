@@ -10,8 +10,17 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
 {
     private ConnectivityNode _connectivity = null!;
 
+    private readonly Avalonia.Threading.DispatcherTimer _diagnosticsTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+
     public MainViewModel()
     {
+        // Live device statistics refresh once a second, but only for the device being looked at.
+        _diagnosticsTimer.Tick += async (_, _) =>
+        {
+            if (SelectedNode is DeviceNode d) await d.RefreshDiagnosticsAsync();
+            else if (SelectedNode is OutputNode o) await o.RefreshStatusAsync();
+        };
+        _diagnosticsTimer.Start();
         BuildTree();
         NavHost.Current = this;
 
@@ -38,6 +47,8 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
         var project = new ProjectNode();
         _connectivity = new ConnectivityNode(n => SelectedNode = n, RunDeviceWizardAsync);
         project.Children.Add(_connectivity);
+        project.Children.Add(new TemplatesNode());
+        project.Children.Add(new OutputsNode());
         project.Children.Add(new ServerNode());
         project.Children.Add(new QuickClientNode());
         Roots.Add(project);
@@ -217,6 +228,48 @@ public sealed partial class MainViewModel : ObservableObject, INavHost
 
     // ---- INavHost: used by the tree's right-click menus ----
     public void Select(NavNode node) => SelectedNode = node;
+    public void SelectRoot() => SelectedNode = Roots[0];
+    public Task<string?> PromptAsync(string title, string label, string initial, Func<string, string?> validate) =>
+        Prompt is null ? Task.FromResult<string?>(null) : Prompt(title, label, initial, validate);
+    public Task<bool> ConfirmAsync(string text) => Confirm is null ? Task.FromResult(true) : Confirm(text);
+
+    /// <summary>Asks which template, what to call the device and the parameter values; null when cancelled. Set by the window.</summary>
+    public Func<IReadOnlyList<DeviceTemplate>, ChannelConfig, Task<TemplateChoice?>>? ShowTemplateDialog { get; set; }
+
+    public async Task AddDeviceFromTemplateAsync(ChannelNode channel)
+    {
+        if (!App.IsEditable || ShowTemplateDialog is null) return;
+        var max = DriverCatalog.For(channel.Config).MaxDevices;
+        if (max > 0 && channel.Config.Devices.Count >= max)
+        {
+            if (FileService.Message is { } m) await m("Add device from template", $"This channel's driver allows {max} device(s).");
+            return;
+        }
+        var fitting = App.Config.Templates.Where(t => t.DriverType == channel.Config.DriverType
+            && string.Equals(t.PluginId, channel.Config.PluginId, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (fitting.Count == 0)
+        {
+            if (FileService.Message is { } m) await m("Add device from template", "There is no template for this channel's driver yet. Create one under Templates, or right-click a device and choose Save as Template.");
+            return;
+        }
+        var choice = await ShowTemplateDialog(fitting, channel.Config);
+        if (choice is null) return;
+
+        var device = TemplateEngine.Instantiate(choice.Template, choice.DeviceName, choice.Values);
+        channel.Config.Devices.Add(device);
+        if (channel.NodeFor(device) is { } node) SelectedNode = node;
+    }
+
+    public async Task SaveDeviceAsTemplateAsync(DeviceNode device)
+    {
+        if (!App.IsEditable || Prompt is null || ChannelOf(device) is not { } owner) return;
+        var existing = App.Config.Templates.Select(t => t.Name).ToList();
+        var name = await Prompt("Save as Template", "Template name:", device.Config.Name + " template", v => NameRules.Validate(v, "template", existing));
+        if (name is null) return;
+        var template = TemplateEngine.FromDevice(owner.Config, device.Config, name);
+        App.Config.Templates.Add(template);
+        if (Roots[0].Children.OfType<TemplatesNode>().FirstOrDefault()?.NodeFor(template) is { } node) SelectedNode = node;
+    }
 
     public void SelectDevice(ChannelConfig channel, DeviceConfig device)
     {

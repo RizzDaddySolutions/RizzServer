@@ -1,3 +1,4 @@
+using RizzServer.Core;
 using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
@@ -97,6 +98,7 @@ public partial class MainWindow : Window
         vm.ShowConnect = async () => await new ConnectWindow().ShowDialog<bool>(this);
         vm.Prompt = (title, prompt, initial, validate) => Dialogs.PromptAsync(this, title, prompt, initial, validate);
         vm.ShowAbout = () => new AboutWindow().ShowDialog(this);
+        vm.ShowTemplateDialog = (templates, channel) => Dialogs.TemplateAsync(this, templates, channel);
         vm.ShowWizard = wizard => WizardWindow.RunAsync(this, wizard);
 
         FileService.PasteText = async () => Clipboard is { } c ? await c.TryGetTextAsync() : null;
@@ -179,6 +181,70 @@ public static class Dialogs
         buttons.Children.Add(cancel);
         dlg.Opened += (_, _) => { box.Focus(); box.SelectAll(); };
 
+        await dlg.ShowDialog(owner);
+        return result;
+    }
+
+    /// <summary>Pick a template, name the device and fill in the template's parameters.</summary>
+    public static async Task<TemplateChoice?> TemplateAsync(Window owner, IReadOnlyList<DeviceTemplate> templates, ChannelConfig channel)
+    {
+        TemplateChoice? result = null;
+        var dlg = Build("Add Device from Template", $"Create a device on channel '{channel.Name}' from a template.", owner, out var buttons);
+        var panel = (StackPanel)dlg.Content!;
+
+        var picker = new ComboBox { ItemsSource = templates.Select(t => t.Name).ToList(), SelectedIndex = 0, MinWidth = 340, Name = "TemplatePicker" };
+        var name = new TextBox { MinWidth = 340, Name = "TemplateDeviceName" };
+        var parameters = new StackPanel { Spacing = 6, Name = "TemplateParameters" };
+        var error = new TextBlock { Foreground = Avalonia.Media.Brushes.IndianRed, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 380, IsVisible = false, Name = "TemplateError" };
+        var boxes = new Dictionary<string, TextBox>();
+
+        DeviceTemplate Current() => templates[Math.Max(0, picker.SelectedIndex)];
+
+        void Rebuild()
+        {
+            var t = Current();
+            parameters.Children.Clear();
+            boxes.Clear();
+            foreach (var (key, def) in t.Parameters)
+            {
+                var box = new TextBox { Text = def, MinWidth = 340 };
+                boxes[key] = box;
+                parameters.Children.Add(new TextBlock { Text = key });
+                parameters.Children.Add(box);
+            }
+            var taken = channel.Devices.Select(d => d.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var suggestion = t.Name;
+            for (var n = 2; taken.Contains(suggestion); n++) suggestion = $"{t.Name}{n}";
+            name.Text = suggestion;
+        }
+
+        picker.SelectionChanged += (_, _) => Rebuild();
+        Rebuild();
+
+        panel.Children.Insert(1, new TextBlock { Text = "Template" });
+        panel.Children.Insert(2, picker);
+        panel.Children.Insert(3, new TextBlock { Text = "Device name" });
+        panel.Children.Insert(4, name);
+        panel.Children.Insert(5, parameters);
+        panel.Children.Insert(6, error);
+
+        var ok = new Button { Content = "Add", MinWidth = 80, IsDefault = true, Name = "TemplateOk" };
+        var cancel = new Button { Content = "Cancel", MinWidth = 80, IsCancel = true };
+        ok.Click += (_, _) =>
+        {
+            var deviceName = (name.Text ?? "").Trim();
+            if (NameRules.Validate(deviceName, "device", channel.Devices.Select(d => d.Name)) is { } message)
+            {
+                error.Text = message;
+                error.IsVisible = true;
+                return;
+            }
+            result = new TemplateChoice(Current(), deviceName, boxes.ToDictionary(b => b.Key, b => b.Value.Text ?? ""));
+            dlg.Close();
+        };
+        cancel.Click += (_, _) => dlg.Close();
+        buttons.Children.Add(ok);
+        buttons.Children.Add(cancel);
         await dlg.ShowDialog(owner);
         return result;
     }

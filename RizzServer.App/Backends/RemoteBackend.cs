@@ -83,6 +83,12 @@ public sealed class RemoteBackend : IGatewayBackend
     public event Action? StateChanged;
     public event Action? ConnectionChanged;
 
+    public async Task<IReadOnlyList<DeviceDiagnostics>> GetDiagnosticsAsync() => await _client.GetDiagnosticsAsync();
+    public async Task<IReadOnlyList<DeviceEvent>> GetEventsAsync(string channel, string device) => await _client.GetEventsAsync(channel, device);
+    public async Task<DeviceTest> TestDeviceAsync(ChannelConfig channel, DeviceConfig device) => await _client.TestDeviceAsync(channel.Name, device.Name);
+    public async Task<IReadOnlyList<OutputStatus>> GetOutputStatusAsync() => await _client.GetOutputStatusAsync();
+    public async Task<IReadOnlyList<Finding>> GetSecurityReportAsync() => await _client.GetSecurityReportAsync();
+
     // ---- project mirror ----
 
     /// <summary>True when the local copy differs from what the service has.</summary>
@@ -92,24 +98,43 @@ public sealed class RemoteBackend : IGatewayBackend
     {
         var server = ServerBody.From(Config.Server);
         server.Users = [];   // users are managed by their own calls, never through the project
-        return JsonSerializer.Serialize(new ProjectBody { Server = server, Channels = Config.Channels.ToList() }, SnapshotOptions);
+        return JsonSerializer.Serialize(Body(server), SnapshotOptions);
     }
+
+    private ProjectBody Body(ServerBody server) => new()
+    {
+        Server = server,
+        Channels = Config.Channels.ToList(),
+        Templates = Config.Templates.ToList(),
+        Northbound = Config.Northbound.ToList(),
+        Redundancy = Config.Redundancy,
+    };
 
     /// <summary>Replaces the local copy in place, so the tree (which listens to these collections) follows.</summary>
     private void Load(ProjectBody project)
     {
         project.Server.ApplyTo(Config.Server);
-        ReplaceUsers(project.Server.Users);
+        ReplaceUsers(project.Server.Users, project.Server.Roles);
         Config.Channels.Clear();
         foreach (var c in project.Channels) Config.Channels.Add(c);
+        Config.Templates.Clear();
+        foreach (var t in project.Templates ?? []) Config.Templates.Add(t);
+        Config.Northbound.Clear();
+        foreach (var n in project.Northbound ?? []) Config.Northbound.Add(n);
+        Config.Redundancy = project.Redundancy ?? new RedundancySettings();
         _snapshot = Snapshot();
     }
 
-    private void ReplaceUsers(IEnumerable<string> names)
+    private void ReplaceUsers(IEnumerable<string> names, IReadOnlyDictionary<string, string>? roles = null)
     {
         Config.Server.Users.Clear();
-        // Only names come back; the placeholder keeps the user list renderable.
-        foreach (var n in names) Config.Server.Users.Add(new UserAccount { Username = n, PasswordHash = "(on the service)" });
+        // Only names and roles come back; the placeholder keeps the user list renderable.
+        foreach (var n in names)
+            Config.Server.Users.Add(new UserAccount
+            {
+                Username = n, PasswordHash = "(on the service)",
+                Role = roles is not null && roles.TryGetValue(n, out var r) && Enum.TryParse<UserRole>(r, out var role) ? role : UserRole.Operator,
+            });
     }
 
     public async Task ReloadAsync(CancellationToken ct = default)
@@ -123,16 +148,16 @@ public sealed class RemoteBackend : IGatewayBackend
         try
         {
             var server = ServerBody.From(Config.Server);
-            await _client.PutProjectAsync(new ProjectBody { Server = server, Channels = Config.Channels.ToList() });
+            await _client.PutProjectAsync(Body(server));
             _snapshot = Snapshot();
             return null;
         }
         catch (ServiceApiException ex) { return ex.IsConflict ? "The service is running, so its configuration is locked. Stop it first." : ex.FullMessage; }
     }
 
-    public async Task AddUserAsync(string username, string password)
+    public async Task AddUserAsync(string username, string password, UserRole? role = null)
     {
-        var names = await _client.AddUserAsync(username, password);
+        var names = await _client.AddUserAsync(username, password, role);
         Dispatcher.UIThread.Invoke(() => ReplaceUsers(names));
     }
 

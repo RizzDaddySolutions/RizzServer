@@ -71,11 +71,24 @@ public sealed class ServiceClient : IDisposable
         await Send<ProjectBody>(HttpMethod.Put, "api/v1/config", JsonContent.Create(project, options: Json), ct);
 
     /// <returns>The user names after the change.</returns>
-    public Task<List<string>> AddUserAsync(string username, string password, CancellationToken ct = default) =>
-        Send<List<string>>(HttpMethod.Post, "api/v1/server/users", JsonContent.Create(new UserBody(username, password), options: Json), ct);
+    public Task<List<string>> AddUserAsync(string username, string password, UserRole? role = null, CancellationToken ct = default) =>
+        Send<List<string>>(HttpMethod.Post, "api/v1/server/users", JsonContent.Create(new UserBody(username, password, role), options: Json), ct);
 
     public Task<List<string>> RemoveUserAsync(string username, CancellationToken ct = default) =>
         Send<List<string>>(HttpMethod.Delete, $"api/v1/server/users/{Uri.EscapeDataString(username)}", null, ct);
+
+    // ---- commissioning, outputs, security ----
+    public Task<List<DeviceDiagnostics>> GetDiagnosticsAsync(CancellationToken ct = default) => GetAsync<List<DeviceDiagnostics>>("api/v1/diagnostics", ct);
+
+    public Task<List<DeviceEvent>> GetEventsAsync(string channel, string device, CancellationToken ct = default) =>
+        GetAsync<List<DeviceEvent>>($"api/v1/diagnostics/{Uri.EscapeDataString(channel)}/{Uri.EscapeDataString(device)}/events", ct);
+
+    public Task<DeviceTest> TestDeviceAsync(string channel, string device, CancellationToken ct = default) =>
+        Send<DeviceTest>(HttpMethod.Post, "api/v1/commissioning/test", JsonContent.Create(new { channel, device, timeoutMs = 8000 }, options: Json), ct);
+
+    public Task<List<OutputStatus>> GetOutputStatusAsync(CancellationToken ct = default) => GetAsync<List<OutputStatus>>("api/v1/outputs/status", ct);
+
+    public Task<List<Finding>> GetSecurityReportAsync(CancellationToken ct = default) => GetAsync<List<Finding>>("api/v1/security/report", ct);
 
     // ---- live data ----
     public Task<List<TagBody>> GetTagsAsync(CancellationToken ct = default) => GetAsync<List<TagBody>>("api/v1/tags", ct);

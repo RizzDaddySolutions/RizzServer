@@ -32,6 +32,11 @@ public interface INavHost
     Task RenameNodeAsync(NavNode node);
     void DuplicateChannel(ChannelNode channel);
     void DuplicateDevice(DeviceNode device);
+    void SelectRoot();
+    Task<string?> PromptAsync(string title, string label, string initial, Func<string, string?> validate);
+    Task<bool> ConfirmAsync(string text);
+    Task AddDeviceFromTemplateAsync(ChannelNode channel);
+    Task SaveDeviceAsTemplateAsync(DeviceNode device);
 }
 
 /// <summary>Set by the main view model so nodes can reach it without a reference chain.</summary>

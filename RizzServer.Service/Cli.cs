@@ -43,7 +43,7 @@ public static class Cli
                 case "security-report":
                 {
                     var settings = ServiceSettings.LoadOrCreate(out _);
-                    var findings = SecurityReport.Check(ConfigStore.Load(), settings);
+                    var findings = SecurityReport.Check(ConfigStore.Load(), settings.Exposure());
                     foreach (var f in findings) @out.WriteLine($"[{f.Severity}] {f.Title}\n        {f.Detail}\n        Fix: {f.Fix}");
                     @out.WriteLine(findings.Count == 0 ? "No findings." : $"{findings.Count} finding(s).");
                     return findings.Any(f => f.Severity == "High") ? 1 : 0;

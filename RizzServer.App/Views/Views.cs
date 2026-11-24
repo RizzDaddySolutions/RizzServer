@@ -46,3 +46,33 @@ public partial class QuickClientView : UserControl
 {
     public QuickClientView() => InitializeComponent();
 }
+
+public partial class OutputsView : UserControl
+{
+    public OutputsView() => InitializeComponent();
+
+    private void OnRowDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (DataContext is OutputsNode node) node.OpenCommand.Execute(null);
+    }
+}
+
+public partial class OutputView : UserControl
+{
+    public OutputView() => InitializeComponent();
+}
+
+public partial class TemplatesView : UserControl
+{
+    public TemplatesView() => InitializeComponent();
+
+    private void OnRowDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (DataContext is TemplatesNode node) node.OpenCommand.Execute(null);
+    }
+}
+
+public partial class TemplateView : UserControl
+{
+    public TemplateView() => InitializeComponent();
+}

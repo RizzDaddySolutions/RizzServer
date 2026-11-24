@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RizzServer.App"
+             x:Class="RizzServer.App.Views.TemplatesView">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="section"><TextBlock Text="Templates — reusable devices" /></Border>
+    <TextBlock DockPanel.Dock="Bottom" Margin="8" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"
+               Text="A template is a device you define once: driver, settings, scan rate and tags, with {parameters} in names, addresses and settings. Right-click a channel and choose Add Device from Template to stamp out as many devices as you need; right-click a device and choose Save as Template to start from one you already have." />
+    <DataGrid ItemsSource="{Binding Templates}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+              DoubleTapped="OnRowDoubleTapped" BorderThickness="0" local:ContextMenuBehavior.SelectOnRightClick="True">
+      <DataGrid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Open" Command="{Binding OpenCommand}" />
+          <MenuItem Header="-" />
+          <MenuItem Header="New Template…" Command="{Binding NewTemplateCommand}" />
+        </ContextMenu>
+      </DataGrid.ContextMenu>
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Template" Binding="{Binding Name}" Width="200" />
+        <DataGridTextColumn Header="Driver" Binding="{Binding DriverType}" Width="140" />
+        <DataGridTextColumn Header="Tags" Binding="{Binding Tags.Count}" Width="80" />
+        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

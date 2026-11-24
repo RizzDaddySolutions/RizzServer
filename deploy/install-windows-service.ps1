@@ -36,7 +36,10 @@ sc.exe failure $name reset= 86400 actions= restart/5000/restart/15000/restart/60
 New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\$name" -Name Environment -PropertyType MultiString `
     -Value @("RIZZSERVER_DATA_DIR=$DataDir") -Force | Out-Null
 
+$env:RIZZSERVER_DATA_DIR = $DataDir   # so the key is created in the service's settings, not yours
+# Keys are stored as hashes and shown once: the first call creates the first admin key and prints it.
+Write-Host "API keys (the key is shown only now; save it):"
+& $exe keys list
+
 Start-Service $name
 Write-Host "Installed and started. REST API: http://127.0.0.1:5080  OPC UA: opc.tcp://<host>:4840/RizzServer"
-$env:RIZZSERVER_DATA_DIR = $DataDir   # so --show-api-key reads the service's settings, not yours
-Write-Host "API key:" (& $exe --show-api-key)

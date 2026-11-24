@@ -16,7 +16,7 @@ public partial class AboutWindow : Window
     }
 
     public IReadOnlyList<DriverInfo> Drivers { get; } =
-        DriverCatalog.All.OrderBy(d => d.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToArray();
+        DriverCatalog.Available.OrderBy(d => d.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToArray();
 
     public int DriverCount => Drivers.Count;
 

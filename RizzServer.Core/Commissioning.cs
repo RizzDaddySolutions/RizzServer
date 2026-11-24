@@ -13,6 +13,8 @@ public interface IDriverDiagnostics
     double AveragePollMs { get; }
 }
 
+public sealed record OutputStatus(string Name, string Kind, string State, string Message, long Sent, long Failed, DateTimeOffset? LastSent);
+
 public sealed record DeviceEvent(DateTimeOffset Time, string Level, string Text);
 
 /// <summary>A snapshot of how one device is doing: the first thing to look at when a value is wrong.</summary>

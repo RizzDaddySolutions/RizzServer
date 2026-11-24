@@ -1,12 +1,14 @@
 # Headless RizzServer (OPC UA gateway + REST API)
 #   docker build -t rizzserver .
 #   docker run -d --name rizzserver -p 4840:4840 -p 5080:5080 -v rizzserver-data:/data rizzserver
-#   docker logs rizzserver ; docker exec rizzserver ./rizzserver-service --show-api-key
+#   docker logs rizzserver   # the first start prints an admin API key once
+#   docker exec rizzserver ./rizzserver-service keys create ops Operator   # more keys, with a role
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY Directory.Build.props ./
 COPY RizzServer.Core/ RizzServer.Core/
+COPY RizzServer.Sdk/ RizzServer.Sdk/
 COPY RizzServer.Drivers/ RizzServer.Drivers/
 COPY RizzServer.Server/ RizzServer.Server/
 COPY RizzServer.Service/ RizzServer.Service/

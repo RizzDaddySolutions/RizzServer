@@ -10,8 +10,6 @@ using RizzServer.Core;
 
 namespace RizzServer.Drivers;
 
-public sealed record OutputStatus(string Name, string Kind, string State, string Message, long Sent, long Failed, DateTimeOffset? LastSent);
-
 /// <summary>What leaves RizzServer for a tag: the same JSON for MQTT and HTTP.</summary>
 public static class OutputPayload
 {

@@ -45,15 +45,39 @@
         </DataGrid.ContextMenu>
         <DataGrid.Columns>
           <DataGridTextColumn Header="User name" Binding="{Binding Username}" Width="*" />
+          <DataGridTextColumn Header="Role" Binding="{Binding Role}" Width="110" />
         </DataGrid.Columns>
       </DataGrid>
-      <Grid Margin="8,8,8,0" ColumnDefinitions="*,8,*,8,Auto,8,Auto">
+      <Grid Margin="8,8,8,0" ColumnDefinitions="*,8,*,8,110,8,Auto,8,Auto">
         <TextBox Text="{Binding NewUsername}" Watermark="User name" />
         <TextBox Grid.Column="2" Text="{Binding NewPassword}" PasswordChar="●" Watermark="Password (8+ chars)" />
-        <Button Grid.Column="4" Content="Add / update" Command="{Binding AddUserCommand}" />
-        <Button Grid.Column="6" Content="Remove selected" Command="{Binding RemoveUserCommand}" />
+        <ComboBox Grid.Column="4" ItemsSource="{Binding Roles}" SelectedItem="{Binding NewRole}"
+                  ToolTip.Tip="Viewer reads; Operator also writes tags; Admin the same plus administration. Anonymous sessions only read." />
+        <Button Grid.Column="6" Content="Add / update" Command="{Binding AddUserCommand}" />
+        <Button Grid.Column="8" Content="Remove selected" Command="{Binding RemoveUserCommand}" />
       </Grid>
       <TextBlock Margin="8,8" Text="{Binding UserMessage}" Foreground="{DynamicResource MutedBrush}" />
+
+      <Border Classes="section">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="Security review" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="tool" Content="Check now" Command="{Binding ReviewSecurityCommand}" />
+        </Grid>
+      </Border>
+      <TextBlock Margin="8,6" Text="{Binding ReviewMessage}" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Findings}" Margin="8,0,8,12">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Margin="0,0,0,8" Spacing="1">
+              <TextBlock FontWeight="SemiBold">
+                <Run Text="{Binding Severity}" /><Run Text="  " /><Run Text="{Binding Title}" />
+              </TextBlock>
+              <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
+              <TextBlock Text="{Binding Fix, StringFormat='Fix: {0}'}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

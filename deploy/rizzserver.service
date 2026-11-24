@@ -5,7 +5,7 @@
 #   sudo mkdir -p /opt/rizzserver && sudo tar -xzf RizzServer.Service-<version>-linux-x64.tar.gz -C /opt/rizzserver
 #   sudo cp deploy/rizzserver.service /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl enable --now rizzserver
-#   sudo -u rizzserver RIZZSERVER_DATA_DIR=/var/lib/rizzserver /opt/rizzserver/rizzserver-service --show-api-key
+#   sudo -u rizzserver RIZZSERVER_DATA_DIR=/var/lib/rizzserver /opt/rizzserver/rizzserver-service keys create admin Admin
 
 [Unit]
 Description=RizzServer OPC UA gateway

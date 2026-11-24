@@ -13,7 +13,7 @@
       </Grid>
     </Border>
 
-    <ScrollViewer Grid.Row="1" MaxHeight="300" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto">
       <StackPanel>
         <Grid ColumnDefinitions="220,*">
           <Border Classes="prop-label"><TextBlock Text="Name" /></Border>
@@ -44,6 +44,18 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <Border Classes="section"><TextBlock Text="Diagnostics and commissioning" /></Border>
+        <Grid ColumnDefinitions="*,Auto" Margin="8,6">
+          <StackPanel Spacing="4">
+            <TextBlock Text="{Binding DiagnosticsText}" FontFamily="Consolas,Menlo,monospace" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding EventsText}" FontFamily="Consolas,Menlo,monospace" TextWrapping="Wrap"
+                       Foreground="{DynamicResource MutedBrush}" IsVisible="{Binding EventsText.Length}" />
+            <TextBlock Text="{Binding TestText}" FontFamily="Consolas,Menlo,monospace" TextWrapping="Wrap" IsVisible="{Binding TestText.Length}" />
+          </StackPanel>
+          <Button Grid.Column="1" VerticalAlignment="Top" Content="Test connection" Command="{Binding TestConnectionCommand}"
+                  ToolTip.Tip="Connect to this device on its own and read its tags once" />
+        </Grid>
       </StackPanel>
     </ScrollViewer>
 
@@ -84,22 +96,28 @@
         </ContextMenu>
       </DataGrid.ContextMenu>
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="180" />
-        <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="*" />
-        <DataGridTemplateColumn Header="Data type" Width="130">
+        <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="150" />
+        <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="*" MinWidth="150" />
+        <DataGridTemplateColumn Header="Data type" Width="115">
           <DataGridTemplateColumn.CellTemplate>
             <DataTemplate>
               <ComboBox ItemsSource="{Binding $parent[UserControl].DataContext.DataTypes}" SelectedItem="{Binding DataType}" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
-        <DataGridTemplateColumn Header="Client access" Width="130">
+        <DataGridTemplateColumn Header="Client access" Width="115">
           <DataGridTemplateColumn.CellTemplate>
             <DataTemplate>
               <ComboBox ItemsSource="{Binding $parent[UserControl].DataContext.Accesses}" SelectedItem="{Binding Access}" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Units" Binding="{Binding Units}" Width="100" />
+        <DataGridTextColumn Header="Scale" Binding="{Binding Scale}" Width="100" />
+        <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="100" />
+        <DataGridTextColumn Header="Min" Binding="{Binding EuMin}" Width="100" />
+        <DataGridTextColumn Header="Max" Binding="{Binding EuMax}" Width="100" />
+        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="160" />
       </DataGrid.Columns>
     </DataGrid>
   </Grid>

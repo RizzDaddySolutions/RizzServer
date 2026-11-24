@@ -53,18 +53,18 @@ public sealed partial class ChannelNameStep : WizardStep
 
 public sealed partial class DriverStep : WizardStep
 {
-    public DriverStep(WizardViewModel w) : base(w) => _selected = DriverCatalog.All[0];
+    public DriverStep(WizardViewModel w) : base(w) => _selected = DriverCatalog.Available[0];
 
     public override string Title => "Device Driver";
     public override string Description => "Select the protocol this channel uses to talk to its devices.";
 
-    public IReadOnlyList<DriverInfo> Drivers => DriverCatalog.All;
+    public IReadOnlyList<DriverInfo> Drivers => DriverCatalog.Available;
 
     [ObservableProperty] private DriverInfo _selected;
 
-    partial void OnSelectedChanged(DriverInfo value) => Wizard.SetDriver(value.Type);
+    partial void OnSelectedChanged(DriverInfo value) => Wizard.SetDriver(value);
 
-    public override void OnEnter() => Wizard.SetDriver(Selected.Type);
+    public override void OnEnter() => Wizard.SetDriver(Selected);
 }
 
 public sealed partial class ChannelSettingsStep : WizardStep
@@ -244,9 +244,11 @@ public sealed partial class WizardViewModel : ObservableObject
     public event Action<bool>? CloseRequested;
 
     /// <summary>Called by the driver step; the draft channel's settings belong to one driver only.</summary>
-    internal void SetDriver(DriverType type)
+    internal void SetDriver(DriverInfo info)
     {
-        if (Mode != WizardMode.NewChannel || Channel.DriverType == type) return;
+        var type = info.Type;
+        if (Mode != WizardMode.NewChannel || (Channel.DriverType == type && string.Equals(Channel.PluginId, info.PluginId, StringComparison.OrdinalIgnoreCase))) return;
+        Channel.PluginId = info.PluginId;
         DriverVersion++; // settings pages rebuild their rows on next entry, even if the user switches back to an earlier driver
         Channel.DriverType = type;
         Channel.Settings.Clear();

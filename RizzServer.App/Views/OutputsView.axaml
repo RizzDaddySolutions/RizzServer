@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RizzServer.App"
+             x:Class="RizzServer.App.Views.OutputsView">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="section"><TextBlock Text="Northbound — outputs" /></Border>
+    <TextBlock DockPanel.Dock="Bottom" Margin="8" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"
+               Text="An output publishes tag values to another system while the runtime runs: an MQTT broker (one topic per tag, retained, with an online/offline status topic) or an HTTP endpoint (JSON batches). Right-click Northbound in the tree to add one; double-click a row to open it." />
+    <DataGrid ItemsSource="{Binding Outputs}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+              DoubleTapped="OnRowDoubleTapped" BorderThickness="0" local:ContextMenuBehavior.SelectOnRightClick="True">
+      <DataGrid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Open" Command="{Binding OpenCommand}" />
+          <MenuItem Header="-" />
+          <MenuItem Header="New MQTT Output…" Command="{Binding NewMqttCommand}" />
+          <MenuItem Header="New HTTP Output…" Command="{Binding NewHttpCommand}" />
+        </ContextMenu>
+      </DataGrid.ContextMenu>
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Output name" Binding="{Binding Name}" Width="200" />
+        <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="120" />
+        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="90" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RizzServer.App"
+             x:Class="RizzServer.App.Views.OutputView">
+  <ScrollViewer>
+    <StackPanel IsEnabled="{Binding App.IsEditable}">
+      <Border Classes="section">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock><Run Text="Output — " /><Run Text="{Binding Title}" /><Run Text="  (" /><Run Text="{Binding KindName}" /><Run Text=")" /></TextBlock>
+        </Grid>
+      </Border>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="Name" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><TextBox Text="{Binding Config.Name}" /></Border>
+      </Grid>
+      <Grid ColumnDefinitions="220,*">
+        <Border Classes="prop-label"><TextBlock Text="Enabled" /></Border>
+        <Border Grid.Column="1" Classes="prop-value"><CheckBox IsChecked="{Binding Config.Enabled}" VerticalAlignment="Center" /></Border>
+      </Grid>
+
+      <Border Classes="section"><TextBlock Text="Settings" /></Border>
+      <ItemsControl ItemsSource="{Binding Settings}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="220,*">
+              <Border Classes="prop-label"><TextBlock Text="{Binding Label}" /></Border>
+              <Border Grid.Column="1" Classes="prop-value">
+                <Panel>
+                  <TextBox Text="{Binding Value}" PasswordChar="{Binding PasswordChar}" IsVisible="{Binding IsFreeText}" />
+                  <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" IsVisible="{Binding HasOptions}" />
+                </Panel>
+              </Border>
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <Border Classes="section"><TextBlock Text="Status" /></Border>
+      <TextBlock Margin="8,6" Text="{Binding StatusText}" FontFamily="Consolas,Menlo,monospace" TextWrapping="Wrap" />
+      <TextBlock Margin="8,0,8,12" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"
+                 Text="Topic templates may use {channel} {device} {tag} {path}. Tag filters use * as a wildcard on the full tag path (Plant.PLC1.Temp); separate several with ';'. Passwords are stored encrypted." />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

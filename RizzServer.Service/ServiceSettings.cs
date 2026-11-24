@@ -126,5 +126,8 @@ public sealed class ServiceSettings
         Uri.TryCreate(u.Replace("*", "localhost").Replace("+", "localhost"), UriKind.Absolute, out var uri)
         && (uri.IsLoopback || uri.Host is "localhost"));
 
+    public ServiceExposure Exposure() => new(HasCredentials, IsLoopbackOnly(), UsesHttps, CertificatePath.Length == 0,
+        ApiKeys.Count(k => k.Role == UserRole.Admin), AllowInsecureRemote);
+
     public bool UsesHttps => Urls.Any(u => u.StartsWith("https:", StringComparison.OrdinalIgnoreCase));
 }
