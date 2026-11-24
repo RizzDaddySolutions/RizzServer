@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RizzServer.App"
              x:Class="RizzServer.App.Views.DeviceView">
   <Grid RowDefinitions="Auto,Auto,Auto,*" IsEnabled="{Binding App.IsEditable}">
 
@@ -70,7 +71,18 @@
     </Border>
 
     <DataGrid Grid.Row="3" ItemsSource="{Binding Config.Tags}" SelectedItem="{Binding SelectedTag, Mode=TwoWay}"
-              AutoGenerateColumns="False" HeadersVisibility="Column" BorderThickness="0">
+              AutoGenerateColumns="False" HeadersVisibility="Column" BorderThickness="0"
+              local:ContextMenuBehavior.SelectOnRightClick="True">
+      <DataGrid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="New Tag" Command="{Binding AddTagCommand}" />
+          <MenuItem Header="Delete Tag" Command="{Binding RemoveTagCommand}" />
+          <MenuItem Header="Copy Address" Command="{Binding CopyAddressCommand}" />
+          <MenuItem Header="-" />
+          <MenuItem Header="Import from CSV…" Command="{Binding ImportTagsCommand}" />
+          <MenuItem Header="Export to CSV…" Command="{Binding ExportTagsCommand}" />
+        </ContextMenu>
+      </DataGrid.ContextMenu>
       <DataGrid.Columns>
         <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="180" />
         <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="*" />

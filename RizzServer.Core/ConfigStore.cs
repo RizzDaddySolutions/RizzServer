@@ -39,6 +39,10 @@ public static class ConfigStore
         return new GatewayConfig();
     }
 
+    /// <summary>Deep copy of a channel/device/tag via its saved form (used by Duplicate).</summary>
+    public static T Clone<T>(T value) =>
+        JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, Options), Options)!;
+
     public static void Save(GatewayConfig config)
     {
         Directory.CreateDirectory(DataDirectory);

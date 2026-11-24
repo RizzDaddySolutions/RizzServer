@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:RizzServer.App.ViewModels"
         xmlns:v="using:RizzServer.App.Views"
+        xmlns:local="using:RizzServer.App"
         x:Class="RizzServer.App.Views.MainWindow"
         Icon="/Assets/icon.ico"
         Title="RizzServer — OPC UA Gateway" Width="1280" Height="820" MinWidth="900" MinHeight="560"
@@ -115,10 +116,21 @@
     <Grid x:Name="MainArea" RowDefinitions="*,4,190">
       <Grid x:Name="TopArea" Grid.Row="0" ColumnDefinitions="260,Auto,*">
         <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0" Background="{DynamicResource PanelBrush}">
-          <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Background="{DynamicResource PanelBrush}">
+          <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Background="{DynamicResource PanelBrush}"
+                    local:ContextMenuBehavior.SelectOnRightClick="True">
             <TreeView.ItemTemplate>
               <TreeDataTemplate DataType="vm:NavNode" ItemsSource="{Binding Children}">
-                <StackPanel Orientation="Horizontal" Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="6" Background="Transparent">
+                  <StackPanel.ContextMenu>
+                    <ContextMenu ItemsSource="{Binding MenuEntries}">
+                      <ContextMenu.Styles>
+                        <Style Selector="MenuItem">
+                          <Setter Property="Header" Value="{Binding Header}" />
+                          <Setter Property="Command" Value="{Binding Command}" />
+                        </Style>
+                      </ContextMenu.Styles>
+                    </ContextMenu>
+                  </StackPanel.ContextMenu>
                   <Path Data="{Binding Icon}" Width="14" Height="14" Stretch="Uniform" Fill="{DynamicResource TreeIconFillBrush}" Stroke="{DynamicResource TreeIconStrokeBrush}"
                         StrokeThickness="1" IsVisible="{Binding !ShowStateDot}" />
                   <Ellipse Width="10" Height="10" Fill="{Binding StateBrush}" IsVisible="{Binding ShowStateDot}"
@@ -140,7 +152,15 @@
       <Grid x:Name="LogPanel" Grid.Row="2" RowDefinitions="Auto,*" ClipToBounds="True">
         <Border Classes="section"><TextBlock Text="Event Log" /></Border>
         <DataGrid Grid.Row="1" ItemsSource="{Binding App.Logs.Entries}" AutoGenerateColumns="False"
-                  IsReadOnly="True" HeadersVisibility="Column" x:Name="LogGrid">
+                  IsReadOnly="True" HeadersVisibility="Column" x:Name="LogGrid"
+                  SelectedItem="{Binding SelectedLog, Mode=TwoWay}" local:ContextMenuBehavior.SelectOnRightClick="True">
+          <DataGrid.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Copy Event" Command="{Binding CopyLogEntryCommand}" />
+              <MenuItem Header="-" />
+              <MenuItem Header="Clear Log" Command="{Binding ClearLogCommand}" />
+            </ContextMenu>
+          </DataGrid.ContextMenu>
           <DataGrid.Columns>
             <DataGridTemplateColumn Header="" Width="28">
               <DataGridTemplateColumn.CellTemplate>

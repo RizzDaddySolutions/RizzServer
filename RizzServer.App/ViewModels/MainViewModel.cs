@@ -6,7 +6,7 @@ using RizzServer.Core;
 
 namespace RizzServer.App.ViewModels;
 
-public sealed partial class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, INavHost
 {
     private readonly ConnectivityNode _connectivity;
 
@@ -19,6 +19,7 @@ public sealed partial class MainViewModel : ObservableObject
         project.Children.Add(new QuickClientNode());
         Roots.Add(project);
         _selectedNode = project;
+        NavHost.Current = this;
 
         App.PropertyChanged += (_, e) =>
         {
@@ -126,6 +127,58 @@ public sealed partial class MainViewModel : ObservableObject
         if (channel.NodeFor(device) is { } node) SelectedNode = node;
     }
 
+    // ---- INavHost: used by the tree's right-click menus ----
+    public void Select(NavNode node) => SelectedNode = node;
+    public Task NewChannelAsync() => AddChannelAsync();
+    public Task NewDeviceAsync(ChannelNode channel) => RunDeviceWizardAsync(channel);
+
+    private ChannelNode? ChannelOf(DeviceNode device) =>
+        _connectivity.Children.OfType<ChannelNode>().FirstOrDefault(c => c.Children.Contains(device));
+
+    private static string UniqueCopyName(string name, IEnumerable<string> existing)
+    {
+        var taken = existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var candidate = $"{name} Copy";
+        for (var n = 2; taken.Contains(candidate); n++) candidate = $"{name} Copy {n}";
+        return candidate;
+    }
+
+    public void DuplicateChannel(ChannelNode channel)
+    {
+        if (!App.IsEditable) return;
+        var clone = ConfigStore.Clone(channel.Config);
+        clone.Name = UniqueCopyName(channel.Config.Name, App.Config.Channels.Select(c => c.Name));
+        App.Config.Channels.Add(clone);
+        if (_connectivity.NodeFor(clone) is { } node) SelectedNode = node;
+    }
+
+    public void DuplicateDevice(DeviceNode device)
+    {
+        if (!App.IsEditable || ChannelOf(device) is not { } channel || !channel.CanAddDevice) return;
+        var clone = ConfigStore.Clone(device.Config);
+        clone.Name = UniqueCopyName(device.Config.Name, channel.Config.Devices.Select(d => d.Name));
+        channel.Config.Devices.Add(clone);
+        if (channel.NodeFor(clone) is { } node) SelectedNode = node;
+    }
+
+    public async Task DeleteNodeAsync(NavNode node)
+    {
+        if (!App.IsEditable) return;
+        switch (node)
+        {
+            case DeviceNode device when ChannelOf(device) is { } channel:
+                if (Confirm is not null && !await Confirm($"Delete device '{device.Title}' and its {device.Config.Tags.Count} tag(s)?")) return;
+                if (SelectedNode == device) SelectedNode = channel;
+                channel.Config.Devices.Remove(device.Config);
+                break;
+            case ChannelNode channel:
+                if (Confirm is not null && !await Confirm($"Delete channel '{channel.Title}' with {channel.Config.Devices.Count} device(s)?")) return;
+                if (SelectedNode == channel || SelectedNode is DeviceNode d && channel.Children.Contains(d)) SelectedNode = _connectivity;
+                App.Config.Channels.Remove(channel.Config);
+                break;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanAddDevice))]
     private async Task AddDeviceAsync()
     {
@@ -136,22 +189,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void AddTag() => CurrentDevice?.AddTagCommand.Execute(null);
 
     [RelayCommand(CanExecute = nameof(CanDelete))]
-    private async Task DeleteAsync()
-    {
-        switch (SelectedNode)
-        {
-            case DeviceNode device when CurrentChannel is { } channel:
-                if (Confirm is not null && !await Confirm($"Delete device '{device.Title}' and its {device.Config.Tags.Count} tag(s)?")) return;
-                SelectedNode = channel;
-                channel.Config.Devices.Remove(device.Config);
-                break;
-            case ChannelNode channel:
-                if (Confirm is not null && !await Confirm($"Delete channel '{channel.Title}' with {channel.Config.Devices.Count} device(s)?")) return;
-                SelectedNode = _connectivity;
-                App.Config.Channels.Remove(channel.Config);
-                break;
-        }
-    }
+    private Task DeleteAsync() => SelectedNode is { } node ? DeleteNodeAsync(node) : Task.CompletedTask;
 
     [RelayCommand(CanExecute = nameof(CanAddTag))]
     private async Task ImportTagsAsync()
@@ -174,6 +212,23 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleLog() => LogVisible = !LogVisible;
+
+    // ---- event log right-click menu ----
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyLogEntryCommand))]
+    private LogEntry? _selectedLog;
+
+    [RelayCommand(CanExecute = nameof(HasSelectedLog))]
+    private async Task CopyLogEntryAsync()
+    {
+        if (SelectedLog is { } e && FileService.CopyText is { } copy)
+            await copy($"{e.Date} {e.Clock}	{e.Category}	{e.Message}");
+    }
+
+    private bool HasSelectedLog() => SelectedLog is not null;
+
+    [RelayCommand]
+    private void ClearLog() => App.Logs.Entries.Clear();
 
     [RelayCommand]
     private async Task AboutAsync()

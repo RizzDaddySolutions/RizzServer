@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RizzServer.App"
              x:Class="RizzServer.App.Views.ConnectivityView">
   <DockPanel>
     <Border DockPanel.Dock="Top" Classes="section"><TextBlock Text="Connectivity — Channels" /></Border>
@@ -7,7 +8,17 @@
                Text="Double-click a channel to open it. Use Edit ▸ New Channel to add one; a channel holds one or more devices, and devices hold tags." />
     <DataGrid ItemsSource="{Binding Channels}" SelectedItem="{Binding Selected, Mode=TwoWay}"
               AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
-              DoubleTapped="OnRowDoubleTapped" BorderThickness="0">
+              DoubleTapped="OnRowDoubleTapped" BorderThickness="0" local:ContextMenuBehavior.SelectOnRightClick="True">
+      <DataGrid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Open" Command="{Binding OpenSelectedCommand}" />
+          <MenuItem Header="-" />
+          <MenuItem Header="New Channel…" Command="{Binding NewChannelCommand}" />
+          <MenuItem Header="Duplicate Channel" Command="{Binding DuplicateSelectedCommand}" />
+          <MenuItem Header="-" />
+          <MenuItem Header="Delete Channel" Command="{Binding DeleteSelectedCommand}" />
+        </ContextMenu>
+      </DataGrid.ContextMenu>
       <DataGrid.Columns>
         <DataGridTextColumn Header="Channel name" Binding="{Binding Name}" Width="200" />
         <DataGridTextColumn Header="Driver" Binding="{Binding DriverType}" Width="140" />

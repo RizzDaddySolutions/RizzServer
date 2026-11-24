@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RizzServer.App"
              x:Class="RizzServer.App.Views.QuickClientView">
   <DockPanel>
     <Border DockPanel.Dock="Top" Classes="section"><TextBlock Text="Quick Client — live values (runtime)" /></Border>
@@ -13,7 +14,14 @@
     </StackPanel>
 
     <DataGrid ItemsSource="{Binding App.RunningTags}" SelectedItem="{Binding Selected, Mode=TwoWay}"
-              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0">
+              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0"
+              local:ContextMenuBehavior.SelectOnRightClick="True">
+      <DataGrid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Copy Item ID" Command="{Binding CopyItemIdCommand}" />
+          <MenuItem Header="Copy Value" Command="{Binding CopyValueCommand}" />
+        </ContextMenu>
+      </DataGrid.ContextMenu>
       <DataGrid.Columns>
         <DataGridTextColumn Header="Item ID" Binding="{Binding NodePath}" Width="*" />
         <DataGridTextColumn Header="Data type" Binding="{Binding Config.DataType}" Width="100" />

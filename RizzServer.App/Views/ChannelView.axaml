@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RizzServer.App"
              x:Class="RizzServer.App.Views.ChannelView">
   <Grid RowDefinitions="Auto,Auto,Auto,*" IsEnabled="{Binding App.IsEditable}">
 
@@ -61,7 +62,17 @@
 
     <DataGrid Grid.Row="3" ItemsSource="{Binding Config.Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
               AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0"
-              DoubleTapped="OnDeviceDoubleTapped">
+              DoubleTapped="OnDeviceDoubleTapped" local:ContextMenuBehavior.SelectOnRightClick="True">
+      <DataGrid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Open" Command="{Binding OpenSelectedDeviceCommand}" />
+          <MenuItem Header="-" />
+          <MenuItem Header="New Device…" Command="{Binding AddDeviceCommand}" />
+          <MenuItem Header="Duplicate Device" Command="{Binding DuplicateSelectedDeviceCommand}" />
+          <MenuItem Header="-" />
+          <MenuItem Header="Delete Device" Command="{Binding DeleteSelectedDeviceCommand}" />
+        </ContextMenu>
+      </DataGrid.ContextMenu>
       <DataGrid.Columns>
         <DataGridTextColumn Header="Device name" Binding="{Binding Name}" Width="200" />
         <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="90" />

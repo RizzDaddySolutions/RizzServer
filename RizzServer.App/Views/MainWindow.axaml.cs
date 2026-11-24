@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -76,6 +77,11 @@ public partial class MainWindow : Window
         vm.Confirm = text => Dialogs.ConfirmAsync(this, text);
         vm.ShowAbout = () => new AboutWindow().ShowDialog(this);
         vm.ShowWizard = wizard => WizardWindow.RunAsync(this, wizard);
+
+        FileService.CopyText = async text =>
+        {
+            if (Clipboard is { } clipboard) await clipboard.SetTextAsync(text);
+        };
 
         var csv = new FilePickerFileType("CSV files") { Patterns = ["*.csv"] };
         FileService.Message = (title, text) => Dialogs.MessageAsync(this, title, text);

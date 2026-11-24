@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RizzServer.App"
              x:Class="RizzServer.App.Views.ServerView">
   <ScrollViewer>
     <StackPanel IsEnabled="{Binding App.IsEditable}">
@@ -35,7 +36,13 @@
       <TextBlock Margin="8,6" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"
                  Text="Passwords are stored as salted hashes. Use a secured endpoint (turn off unsecured connections), otherwise the password travels unencrypted. Adding an existing name changes its password. Changes apply when the runtime is started." />
       <DataGrid ItemsSource="{Binding Server.Users}" SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
-                AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Height="130" Margin="8,0">
+                AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Height="130" Margin="8,0"
+                local:ContextMenuBehavior.SelectOnRightClick="True">
+        <DataGrid.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="Remove User" Command="{Binding RemoveUserCommand}" />
+          </ContextMenu>
+        </DataGrid.ContextMenu>
         <DataGrid.Columns>
           <DataGridTextColumn Header="User name" Binding="{Binding Username}" Width="*" />
         </DataGrid.Columns>
