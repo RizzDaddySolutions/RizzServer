@@ -22,6 +22,9 @@ public sealed class GatewayEngine
     public IReadOnlyList<TagRuntime> Tags { get; private set; } = [];
     public bool IsRunning { get; private set; }
 
+    /// <summary>Set by the host to record security-relevant events: (action, user, target, detail).</summary>
+    public Action<string, string, string, string>? Audit { get; set; }
+
     public event Action<TagRuntime>? TagUpdated;
     /// <summary>Raised after Connections/Tags were rebuilt (start or stop).</summary>
     public event Action? RuntimeRebuilt;
@@ -105,7 +108,10 @@ public sealed class GatewayEngine
 
         var coerced = TagValueConverter.Coerce(value, tag.Config.DataType)
                       ?? throw new ArgumentException($"Cannot convert '{value}' to {tag.Config.DataType}.");
-        await driver.WriteAsync(tag.Config, coerced, ct);
+        if (!TagScaling.WithinRange(tag.Config, coerced))
+            throw new ArgumentOutOfRangeException(nameof(value), $"{coerced} is outside the range {tag.Config.EuMin}..{tag.Config.EuMax} of {tag.NodePath}.");
+        // The device holds the raw value; clients work in engineering units.
+        await driver.WriteAsync(tag.Config, TagScaling.ToRaw(tag.Config, coerced), ct);
         // Optimistic update; the next poll confirms.
         Apply(tag, coerced, TagQuality.Good);
     }
@@ -113,8 +119,10 @@ public sealed class GatewayEngine
     private void OnTagUpdated(ConnectionConfig conn, TagConfig tag, object? value, TagQuality quality)
     {
         if (!_tagMap.TryGetValue((conn, tag), out var rt)) return;
-        var coerced = value is null ? null : TagValueConverter.Coerce(value, tag.DataType);
+        var scaled = value is null ? null : TagScaling.ToEngineering(tag, value);
+        var coerced = scaled is null ? null : TagValueConverter.Coerce(scaled, tag.DataType);
         if (value is not null && coerced is null) quality = TagQuality.Bad;
+        if (quality == TagQuality.Good && coerced is not null && !TagScaling.WithinRange(tag, coerced)) quality = TagQuality.Uncertain;
         Apply(rt, coerced ?? rt.Value, quality);
     }
 

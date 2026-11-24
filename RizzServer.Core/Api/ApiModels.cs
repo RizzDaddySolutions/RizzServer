@@ -26,6 +26,9 @@ public sealed class ServerBody
     /// <summary>Read-only: names only. Manage users with /api/v1/server/users.</summary>
     public List<string> Users { get; set; } = new();
 
+    /// <summary>Read-only: name → role.</summary>
+    public Dictionary<string, string> Roles { get; set; } = new();
+
     public static ServerBody From(ServerSettings s) => new()
     {
         ApplicationName = s.ApplicationName,
@@ -35,6 +38,7 @@ public sealed class ServerBody
         NamespaceUri = s.NamespaceUri,
         AllowAnonymous = s.AllowAnonymous,
         Users = s.Users.Select(u => u.Username).ToList(),
+        Roles = s.Users.ToDictionary(u => u.Username, u => u.Role.ToString()),
     };
 
     public void ApplyTo(ServerSettings s)
@@ -52,9 +56,14 @@ public sealed class ProjectBody
 {
     public ServerBody Server { get; set; } = new();
     public List<ChannelConfig> Channels { get; set; } = new();
+
+    /// <summary>Null = leave the stored value alone (older clients don't send these).</summary>
+    public List<DeviceTemplate>? Templates { get; set; }
+    public List<NorthboundConfig>? Northbound { get; set; }
+    public RedundancySettings? Redundancy { get; set; }
 }
 
-public sealed record UserBody(string Username, string Password);
+public sealed record UserBody(string Username, string Password, UserRole? Role = null);
 
 public sealed record WriteBody(JsonElement Value);
 

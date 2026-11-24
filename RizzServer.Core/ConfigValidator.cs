@@ -17,7 +17,52 @@ public static class ConfigValidator
             ValidateChannel(channel, seen, errors);
             seen.Add(channel.Name);
         }
+
+        var templates = new List<string>();
+        foreach (var t in config.Templates)
+        {
+            TemplateEngine.Validate(t, templates, errors);
+            templates.Add(t.Name);
+        }
+        foreach (var channel in config.Channels)
+            foreach (var d in channel.Devices.Where(d => d.Template is not null))
+                if (!config.Templates.Any(t => string.Equals(t.Name, d.Template, StringComparison.OrdinalIgnoreCase)))
+                    errors.Add($"Device '{channel.Name}.{d.Name}' refers to template '{d.Template}', which does not exist.");
+
+        var outputs = new List<string>();
+        foreach (var n in config.Northbound)
+        {
+            ValidateNorthbound(n, outputs, errors);
+            outputs.Add(n.Name);
+        }
+        ValidateRedundancy(config.Redundancy, errors);
         return errors;
+    }
+
+    public static void ValidateNorthbound(NorthboundConfig output, IEnumerable<string> others, List<string> errors)
+    {
+        if (NameRules.Validate(output.Name, "output", others) is { } nameError) errors.Add(nameError);
+        var where = $"Output '{output.Name}'";
+        ValidateSettings(output.Settings, NorthboundCatalog.For(output.Kind), where, errors);
+        if (output.Kind == NorthboundKind.Mqtt)
+        {
+            if (output.SettingInt("Port", 1883) is < 1 or > 65535) errors.Add($"{where}: port is not between 1 and 65535.");
+            if (output.Setting("Host").Length == 0) errors.Add($"{where}: broker host is empty.");
+            if (output.Setting("TopicTemplate", "x").Contains('#') || output.Setting("TopicTemplate", "x").Contains('+'))
+                errors.Add($"{where}: a publish topic cannot contain the wildcards # or +.");
+        }
+        else if (!Uri.TryCreate(output.Setting("Url"), UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+            errors.Add($"{where}: the URL must be an absolute http:// or https:// address.");
+        if (output.SettingInt("IntervalMs", 1000) < 100) errors.Add($"{where}: the interval must be at least 100 ms.");
+    }
+
+    public static void ValidateRedundancy(RedundancySettings r, List<string> errors)
+    {
+        if (!r.Enabled) return;
+        if (!Uri.TryCreate(r.PeerUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+            errors.Add("Redundancy: the peer URL must be an absolute http:// or https:// address.");
+        if (r.HeartbeatMs < 200) errors.Add("Redundancy: the heartbeat must be at least 200 ms.");
+        if (r.FailoverAfterMs < r.HeartbeatMs * 2) errors.Add("Redundancy: fail over after at least two heartbeats.");
     }
 
     public static void ValidateServer(ServerSettings server, List<string> errors)
@@ -41,7 +86,12 @@ public static class ConfigValidator
         if (NameRules.Validate(channel.Name, "channel", otherChannelNames) is { } nameError) errors.Add(nameError);
         var where = $"Channel '{channel.Name}'";
 
-        var info = DriverCatalog.Get(channel.DriverType);
+        var info = DriverCatalog.For(channel);
+        if (channel.DriverType == DriverType.Plugin)
+        {
+            if (string.IsNullOrWhiteSpace(channel.PluginId)) errors.Add($"{where}: a plugin channel needs a plugin id.");
+            else if (info.Source == "missing") errors.Add($"{where}: the plugin '{channel.PluginId}' is not installed.");
+        }
         ValidateSettings(channel.Settings, info.ChannelSettings, where, errors);
 
         if (info.MaxDevices > 0 && channel.Devices.Count > info.MaxDevices)
@@ -64,7 +114,7 @@ public static class ConfigValidator
         if (device.ScanRateMs is < MinScanRateMs or > MaxScanRateMs)
             errors.Add($"{where}: scan rate {device.ScanRateMs} ms is not between {MinScanRateMs} and {MaxScanRateMs}.");
 
-        ValidateSettings(device.Settings, DriverCatalog.Get(channel.DriverType).DeviceSettings, where, errors);
+        ValidateSettings(device.Settings, DriverCatalog.For(channel).DeviceSettings, where, errors);
 
         var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var tag in device.Tags)
@@ -72,7 +122,19 @@ public static class ConfigValidator
             if (string.IsNullOrWhiteSpace(tag.Name)) { errors.Add($"{where}: a tag has an empty name."); continue; }
             if (!tags.Add(tag.Name.Trim())) errors.Add($"{where}: tag '{tag.Name}' appears more than once.");
             if (string.IsNullOrWhiteSpace(tag.Address)) errors.Add($"{where}: tag '{tag.Name}' has no address.");
+            ValidateTagModel(tag, where, errors);
         }
+    }
+
+    private static void ValidateTagModel(TagConfig tag, string where, List<string> errors)
+    {
+        if (tag.Scale == 0) errors.Add($"{where}: tag '{tag.Name}' has a scale of 0.");
+        if (tag.HasScaling && tag.DataType is not (TagDataType.Float or TagDataType.Double))
+            errors.Add($"{where}: tag '{tag.Name}' is scaled, so its type must be Float or Double (an integer type would lose the decimals).");
+        if (tag.EuMin is not null && tag.EuMax is not null && tag.EuMin >= tag.EuMax)
+            errors.Add($"{where}: tag '{tag.Name}' has a range minimum that is not below its maximum.");
+        if ((tag.EuMin is not null || tag.EuMax is not null) && tag.DataType is TagDataType.String or TagDataType.Boolean)
+            errors.Add($"{where}: tag '{tag.Name}' has a range but is not numeric.");
     }
 
     private static void ValidateSettings(IReadOnlyDictionary<string, string> settings, IEnumerable<SettingDescriptor> allowed,

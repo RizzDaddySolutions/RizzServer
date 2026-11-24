@@ -652,7 +652,7 @@ public sealed partial class ProtocolDesignerViewModel : ObservableObject
 
         App.Config.Channels.Add(channel);
         NavHost.Current?.SelectDevice(channel, channel.Devices[0]);
-        CreateMessage = $"Created channel '{channel.Name}' ({DriverCatalog.Get(channel.DriverType).DisplayName}) with {channel.Devices[0].Tags.Count} tag(s). Check the port settings, then Start Runtime.";
+        CreateMessage = $"Created channel '{channel.Name}' ({DriverCatalog.For(channel).DisplayName}) with {channel.Devices[0].Tags.Count} tag(s). Check the port settings, then Start Runtime.";
         App.LogInfo($"Protocol Designer created channel {channel.Name}");
     }
 

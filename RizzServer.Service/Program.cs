@@ -5,6 +5,18 @@ using RizzServer.Server;
 using RizzServer.Service;
 using RizzServer.Service.Api;
 
+// ---- project-as-code commands (validate, diff, export, apply, schema) ----
+if (Cli.TryRun(args, Console.Out, Console.Error) is { } exitCode) return exitCode;
+
+// --config <file> runs the project from a file (JSON or YAML) and reloads it when the file changes.
+string? projectFile = null;
+var cfgIndex = Array.FindIndex(args, a => a == "--config");
+if (cfgIndex >= 0)
+{
+    projectFile = cfgIndex + 1 < args.Length ? args[cfgIndex + 1] : throw new ArgumentException("--config needs a file name.");
+    if (!File.Exists(projectFile)) throw new FileNotFoundException($"Project file '{projectFile}' not found.");
+}
+
 // ---- tiny CLI for key management; runs before the host is built ----
 if (args.Contains("--show-api-key") || args.Contains("--new-api-key"))
 {
@@ -15,7 +27,7 @@ if (args.Contains("--show-api-key") || args.Contains("--new-api-key"))
         s.Save();
     }
     Console.WriteLine(s.ApiKey);
-    return;
+    return 0;
 }
 
 var settings = ServiceSettings.LoadOrCreate(out var createdSettings);
@@ -35,7 +47,16 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Ad
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(settings);
 builder.Services.AddSingleton(logBuffer);
-builder.Services.AddSingleton(sp => new GatewayRuntime(ConfigStore.Load(), sp.GetRequiredService<ILoggerFactory>()));
+builder.Services.AddSingleton(sp =>
+{
+    if (projectFile is null) return new GatewayRuntime(ConfigStore.Load(), sp.GetRequiredService<ILoggerFactory>());
+    var fromFile = ConfigStore.LoadFile(projectFile);
+    var problems = ConfigValidator.Validate(fromFile);
+    if (problems.Count > 0) throw new InvalidOperationException($"{projectFile} is not valid: " + string.Join("; ", problems));
+    return new GatewayRuntime(fromFile, sp.GetRequiredService<ILoggerFactory>()) { SourceFile = Path.GetFullPath(projectFile) };
+});
+if (projectFile is not null)
+    builder.Services.AddHostedService(sp => new ConfigFileWatcher(sp.GetRequiredService<GatewayRuntime>(), projectFile, sp.GetRequiredService<ILogger<ConfigFileWatcher>>()));
 builder.Services.AddSingleton<ConfigEditor>();
 builder.Services.AddHostedService<GatewayHostedService>();
 
@@ -62,5 +83,7 @@ app.MapGet("/health", (GatewayRuntime rt) => Results.Ok(new { status = "ok", run
 var api = app.MapGroup("/api/v1");
 RuntimeApi.Map(api);
 ConfigApi.Map(api);
+ProjectApi.Map(api);
 
 await app.RunAsync();
+return 0;

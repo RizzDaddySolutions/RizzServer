@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace RizzServer.Core;
 
-public enum DriverType { ModbusTcp, ModbusRtu, Serial, Mqtt, OpcDa, Rs232Poll, BinaryFrame, OpcUa }
+/// <summary><see cref="Plugin"/> channels name their driver in <see cref="ChannelConfig.PluginId"/>.</summary>
+public enum DriverType { ModbusTcp, ModbusRtu, Serial, Mqtt, OpcDa, Rs232Poll, BinaryFrame, OpcUa, Plugin }
 
 public enum TagDataType { Boolean, Int16, UInt16, Int32, UInt32, Int64, UInt64, Float, Double, String }
 
@@ -19,6 +21,24 @@ public partial class TagConfig : ObservableObject
     [ObservableProperty] private string _address = "";
     [ObservableProperty] private TagDataType _dataType = TagDataType.Int16;
     [ObservableProperty] private TagAccess _access = TagAccess.ReadOnly;
+
+    // ---- data model: optional metadata, omitted from the project file when unset ----
+
+    /// <summary>Free text shown in OPC UA browsers and exported with the tag.</summary>
+    [ObservableProperty] [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] private string? _description;
+
+    /// <summary>Engineering unit, e.g. "°C" or "bar".</summary>
+    [ObservableProperty] [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] private string? _units;
+
+    /// <summary>Linear scaling from the raw device value: engineering = raw × Scale + Offset. Use a Float/Double tag.</summary>
+    [ObservableProperty] [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] private double? _scale;
+    [ObservableProperty] [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] private double? _offset;
+
+    /// <summary>Plausible engineering range. A value outside it is served with Uncertain quality.</summary>
+    [ObservableProperty] [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] private double? _euMin;
+    [ObservableProperty] [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] private double? _euMax;
+
+    [JsonIgnore] public bool HasScaling => Scale is not null or 1 || Offset is not null or 0;
 }
 
 /// <summary>One device on a channel: its own address/protocol settings, scan rate and tags.</summary>
@@ -28,9 +48,16 @@ public partial class DeviceConfig : ObservableObject
     [ObservableProperty] private bool _enabled = true;
     [ObservableProperty] private int _scanRateMs = 1000;
 
+    /// <summary>Name of the <see cref="DeviceTemplate"/> this device was created from (see <see cref="TemplateEngine"/>).</summary>
+    [ObservableProperty] [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] private string? _template;
+
+    /// <summary>The parameter values the template was applied with.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull), JsonPropertyOrder(99)]
+    public Dictionary<string, string>? TemplateParams { get; set; }
+
     /// <summary>Device-scoped driver settings (see <see cref="SettingScope.Device"/>).</summary>
-    public Dictionary<string, string> Settings { get; set; } = new();
-    public ObservableCollection<TagConfig> Tags { get; set; } = new();
+    [JsonPropertyOrder(100)] public Dictionary<string, string> Settings { get; set; } = new();
+    [JsonPropertyOrder(101)] public ObservableCollection<TagConfig> Tags { get; set; } = new();
 }
 
 /// <summary>A communication link (driver + shared settings such as the COM port) holding one or more devices.</summary>
@@ -40,9 +67,12 @@ public partial class ChannelConfig : ObservableObject
     [ObservableProperty] private DriverType _driverType = DriverType.ModbusTcp;
     [ObservableProperty] private bool _enabled = true;
 
+    /// <summary>For <see cref="DriverType.Plugin"/> channels: the id of the plugin driver.</summary>
+    [ObservableProperty] [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] private string? _pluginId;
+
     /// <summary>Channel-scoped driver settings (see <see cref="SettingScope.Channel"/>).</summary>
-    public Dictionary<string, string> Settings { get; set; } = new();
-    public ObservableCollection<DeviceConfig> Devices { get; set; } = new();
+    [JsonPropertyOrder(100)] public Dictionary<string, string> Settings { get; set; } = new();
+    [JsonPropertyOrder(101)] public ObservableCollection<DeviceConfig> Devices { get; set; } = new();
 
     /// <summary>Merges channel and device settings into the configuration a driver instance runs on.</summary>
     public ConnectionConfig Flatten(DeviceConfig device)
@@ -55,8 +85,9 @@ public partial class ChannelConfig : ObservableObject
             ChannelName = Name,
             DeviceName = device.Name,
             DriverType = DriverType,
+            PluginId = PluginId,
             PollIntervalMs = device.ScanRateMs,
-            Settings = merged,
+            Settings = SecretStore.ExpandReferences(merged),
             Tags = device.Tags,
         };
     }
@@ -75,6 +106,7 @@ public partial class ConnectionConfig : ObservableObject
 
     public string ChannelName { get; set; } = "";
     public string DeviceName { get; set; } = "";
+    public string? PluginId { get; set; }
 
     public Dictionary<string, string> Settings { get; set; } = new();
     public ObservableCollection<TagConfig> Tags { get; set; } = new();
@@ -102,9 +134,13 @@ public partial class ServerSettings : ObservableObject
     public ObservableCollection<UserAccount> Users { get; set; } = new();
 }
 
+public enum UserRole { Viewer, Operator, Admin }
+
 public class UserAccount
 {
     public string Username { get; set; } = "";
+    /// <summary>What the account may do over OPC UA: Viewer reads, Operator also writes tags, Admin is the same plus (reserved for) administration.</summary>
+    public UserRole Role { get; set; } = UserRole.Admin;
     /// <summary>PBKDF2 hash, "iterations.salt.hash" (base64). Never the plain password.</summary>
     public string PasswordHash { get; set; } = "";
 }
@@ -113,6 +149,14 @@ public class GatewayConfig
 {
     public ServerSettings Server { get; set; } = new();
     public ObservableCollection<ChannelConfig> Channels { get; set; } = new();
+
+    /// <summary>Reusable device definitions (see <see cref="TemplateEngine"/>).</summary>
+    public ObservableCollection<DeviceTemplate> Templates { get; set; } = new();
+
+    /// <summary>Outputs that publish tag values to other systems.</summary>
+    public ObservableCollection<NorthboundConfig> Northbound { get; set; } = new();
+
+    public RedundancySettings Redundancy { get; set; } = new();
 }
 
 /// <summary>Live state of one connection.</summary>

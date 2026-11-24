@@ -18,6 +18,9 @@ public static class ConfigApi
         {
             Server = ServerBody.From(rt.Config.Server),
             Channels = rt.Config.Channels.Select(Mask).ToList(),
+            Templates = rt.Config.Templates.ToList(),
+            Northbound = rt.Config.Northbound.Select(Mask).ToList(),
+            Redundancy = Mask(rt.Config.Redundancy),
         }))
         .WithSummary("The whole project. Secrets are masked; users are listed by name only.");
 
@@ -28,8 +31,31 @@ public static class ConfigApi
             foreach (var ch in incoming) RestoreSecrets(ch, FindChannel(c, ch.Name));
             c.Channels.Clear();
             foreach (var ch in incoming) c.Channels.Add(ch);
+            if (body.Templates is not null)
+            {
+                c.Templates.Clear();
+                foreach (var t in body.Templates) c.Templates.Add(t);
+            }
+            if (body.Northbound is not null)
+            {
+                foreach (var n in body.Northbound) RestoreSecrets(n, c.Northbound.FirstOrDefault(o => o.Name == n.Name));
+                c.Northbound.Clear();
+                foreach (var n in body.Northbound) c.Northbound.Add(n);
+            }
+            if (body.Redundancy is { } r)
+            {
+                if (r.PeerApiKey == SecretMask) r.PeerApiKey = c.Redundancy.PeerApiKey;
+                c.Redundancy = r;
+            }
             return null;
-        }, c => Results.Ok(new ProjectBody { Server = ServerBody.From(c.Server), Channels = c.Channels.Select(Mask).ToList() })))
+        }, c => Results.Ok(new ProjectBody
+        {
+            Server = ServerBody.From(c.Server),
+            Channels = c.Channels.Select(Mask).ToList(),
+            Templates = c.Templates.ToList(),
+            Northbound = c.Northbound.Select(Mask).ToList(),
+            Redundancy = Mask(c.Redundancy),
+        })))
         .WithSummary("Replace server settings and all channels at once. Stop the runtime first.");
 
         // ---- server settings + users ----
@@ -45,8 +71,8 @@ public static class ConfigApi
                 return Json(400, new ErrorBody("A user name and a password of at least 8 characters are required."));
             var hash = PasswordHasher.Hash(body.Password!);
             var existing = c.Server.Users.FirstOrDefault(u => u.Username == body.Username.Trim());
-            if (existing is not null) existing.PasswordHash = hash;
-            else c.Server.Users.Add(new UserAccount { Username = body.Username.Trim(), PasswordHash = hash });
+            if (existing is not null) { existing.PasswordHash = hash; if (body.Role is { } role) existing.Role = role; }
+            else c.Server.Users.Add(new UserAccount { Username = body.Username.Trim(), PasswordHash = hash, Role = body.Role ?? UserRole.Operator });
             return null;
         }, c => Results.Ok(ServerBody.From(c.Server).Users)))
         .WithSummary("Add a user, or change the password of an existing one.");

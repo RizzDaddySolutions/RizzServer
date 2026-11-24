@@ -392,7 +392,7 @@ public sealed partial class ChannelNode : NavNode
     private void RebuildSettings()
     {
         Settings.Clear();
-        var info = DriverCatalog.Get(Config.DriverType);
+        var info = DriverCatalog.For(Config);
         foreach (var d in info.ChannelSettings) Settings.Add(new SettingItem(Config.Settings, d));
         DeviceHint = info.MaxDevices == 1
             ? "This driver reads a continuous stream, so a channel holds exactly one device."
@@ -404,7 +404,7 @@ public sealed partial class ChannelNode : NavNode
 
     private void UpdateCanAdd()
     {
-        var max = DriverCatalog.Get(Config.DriverType).MaxDevices;
+        var max = DriverCatalog.For(Config).MaxDevices;
         CanAddDevice = max == 0 || Config.Devices.Count < max;
     }
 
@@ -483,7 +483,7 @@ public sealed partial class DeviceNode : NavNode
 
     private bool CanDuplicate()
     {
-        var max = DriverCatalog.Get(_channel.DriverType).MaxDevices;
+        var max = DriverCatalog.For(_channel).MaxDevices;
         return Editable && (max == 0 || _channel.Devices.Count < max);
     }
 
@@ -526,7 +526,7 @@ public sealed partial class DeviceNode : NavNode
     private void RebuildSettings()
     {
         Settings.Clear();
-        var info = DriverCatalog.Get(_channel.DriverType);
+        var info = DriverCatalog.For(_channel);
         AddressHint = info.AddressHint;
         foreach (var d in info.DeviceSettings) Settings.Add(new SettingItem(Config.Settings, d));
         HasSettings = Settings.Count > 0;

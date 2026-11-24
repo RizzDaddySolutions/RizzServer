@@ -28,6 +28,12 @@ public sealed record DriverInfo(DriverType Type, string DisplayName, string Addr
     /// <summary>Maximum devices per channel; 0 = unlimited.</summary>
     public int MaxDevices { get; init; }
 
+    /// <summary>Set for drivers that come from a plugin (<see cref="DriverType.Plugin"/>); the key stored in the project.</summary>
+    public string? PluginId { get; init; }
+
+    /// <summary>Where the driver came from: "built-in" or the plugin's file/name.</summary>
+    public string Source { get; init; } = "built-in";
+
     public IEnumerable<SettingDescriptor> ChannelSettings => Settings.Where(s => s.Scope == SettingScope.Channel);
     public IEnumerable<SettingDescriptor> DeviceSettings => Settings.Where(s => s.Scope == SettingScope.Device);
 }
@@ -131,5 +137,38 @@ public static class DriverCatalog
             ]),
     ];
 
-    public static DriverInfo Get(DriverType type) => All.First(d => d.Type == type);
+    private static readonly List<DriverInfo> Plugins = new();
+    private static readonly object PluginLock = new();
+
+    /// <summary>Every driver a channel can use: the built-in ones, then the loaded plugins.</summary>
+    public static IReadOnlyList<DriverInfo> Available
+    {
+        get { lock (PluginLock) return [.. All, .. Plugins]; }
+    }
+
+    /// <summary>Adds a plugin driver to the catalog (replaces one with the same id).</summary>
+    public static void Register(DriverInfo plugin)
+    {
+        if (plugin.Type != DriverType.Plugin || string.IsNullOrEmpty(plugin.PluginId))
+            throw new ArgumentException("A plugin driver needs DriverType.Plugin and a PluginId.");
+        lock (PluginLock)
+        {
+            Plugins.RemoveAll(p => string.Equals(p.PluginId, plugin.PluginId, StringComparison.OrdinalIgnoreCase));
+            Plugins.Add(plugin);
+        }
+    }
+
+    public static DriverInfo? Find(DriverType type, string? pluginId)
+    {
+        if (type != DriverType.Plugin) return All.FirstOrDefault(d => d.Type == type);
+        lock (PluginLock) return Plugins.FirstOrDefault(p => string.Equals(p.PluginId, pluginId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>The driver of a channel. A channel whose plugin isn't installed gets an empty placeholder so the project still loads.</summary>
+    public static DriverInfo For(ChannelConfig channel) => Find(channel.DriverType, channel.PluginId)
+        ?? new DriverInfo(DriverType.Plugin, $"Missing plugin '{channel.PluginId}'", "", []) { PluginId = channel.PluginId, Source = "missing" };
+
+    public static DriverInfo Get(DriverType type) => type == DriverType.Plugin
+        ? throw new ArgumentException("Plugin drivers are looked up by id: use DriverCatalog.For(channel).")
+        : All.First(d => d.Type == type);
 }

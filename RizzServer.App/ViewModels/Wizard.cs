@@ -79,14 +79,14 @@ public sealed partial class ChannelSettingsStep : WizardStep
     public ObservableCollection<SettingItem> Settings { get; } = new();
     [ObservableProperty] private string _portsHint = "";
 
-    public override bool IsSkipped => !DriverCatalog.Get(Wizard.Channel.DriverType).ChannelSettings.Any();
+    public override bool IsSkipped => !DriverCatalog.For(Wizard.Channel).ChannelSettings.Any();
 
     public override void OnEnter()
     {
         if (_builtVersion == Wizard.DriverVersion) return;
         _builtVersion = Wizard.DriverVersion;
         Settings.Clear();
-        foreach (var d in DriverCatalog.Get(Wizard.Channel.DriverType).ChannelSettings)
+        foreach (var d in DriverCatalog.For(Wizard.Channel).ChannelSettings)
             Settings.Add(new SettingItem(Wizard.Channel.Settings, d));
 
         PortsHint = Settings.Any(s => s.Descriptor.Key == "PortName") ? DetectPorts() : "";
@@ -137,14 +137,14 @@ public sealed partial class DeviceSettingsStep : WizardStep
 
     public ObservableCollection<SettingItem> Settings { get; } = new();
 
-    public override bool IsSkipped => !DriverCatalog.Get(Wizard.Channel.DriverType).DeviceSettings.Any();
+    public override bool IsSkipped => !DriverCatalog.For(Wizard.Channel).DeviceSettings.Any();
 
     public override void OnEnter()
     {
         if (_builtVersion == Wizard.DriverVersion) return;
         _builtVersion = Wizard.DriverVersion;
         Settings.Clear();
-        foreach (var d in DriverCatalog.Get(Wizard.Channel.DriverType).DeviceSettings)
+        foreach (var d in DriverCatalog.For(Wizard.Channel).DeviceSettings)
             Settings.Add(new SettingItem(Wizard.Device.Settings, d));
     }
 }
@@ -343,7 +343,7 @@ public sealed partial class WizardViewModel : ObservableObject
 
     internal string BuildSummary()
     {
-        var info = DriverCatalog.Get(Channel.DriverType);
+        var info = DriverCatalog.For(Channel);
         var lines = new List<string>();
         if (Mode == WizardMode.NewChannel)
         {

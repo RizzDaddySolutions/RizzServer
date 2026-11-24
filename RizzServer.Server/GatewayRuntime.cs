@@ -69,6 +69,17 @@ public sealed class GatewayRuntime
         StateChanged?.Invoke();
     }
 
+    /// <summary>Swaps in a new project; runs again afterwards if it was running.</summary>
+    public async Task ReloadAsync(GatewayConfig candidate)
+    {
+        var wasRunning = IsRunning;
+        await StopAsync();
+        await Gate.WaitAsync();
+        try { ReplaceConfig(candidate); }
+        finally { Gate.Release(); }
+        if (wasRunning) await StartAsync();
+    }
+
     public async Task RestartAsync()
     {
         await StopAsync();
@@ -84,4 +95,10 @@ public sealed class GatewayRuntime
     }
 
     public void Save() => ConfigStore.Save(Config);
+
+    /// <summary>Set when the project comes from a file under version control; the API then refuses edits (change the file instead).</summary>
+    public string? SourceFile { get; set; }
+
+    /// <summary>Copies a validated project into the live project object (the engine and the OPC UA server hold that object).</summary>
+    public void ReplaceConfig(GatewayConfig candidate) => ConfigStore.CopyInto(Config, candidate);
 }

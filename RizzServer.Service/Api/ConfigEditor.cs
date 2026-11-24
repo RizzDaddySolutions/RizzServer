@@ -18,6 +18,8 @@ public sealed class ConfigEditor(GatewayRuntime runtime)
         await runtime.Gate.WaitAsync();
         try
         {
+            if (runtime.SourceFile is { } file)
+                return Json(409, new ErrorBody($"The project is managed by the file '{file}' (--config). Change the file; the service reloads it."));
             if (runtime.IsRunning)
                 return Json(409, new ErrorBody("The runtime is running. POST /api/v1/runtime/stop, change the configuration, then start it again."));
 
@@ -27,29 +29,11 @@ public sealed class ConfigEditor(GatewayRuntime runtime)
             var errors = ConfigValidator.Validate(candidate);
             if (errors.Count > 0) return Json(400, new ErrorBody("The configuration is not valid.", errors));
 
-            Commit(candidate);
+            runtime.ReplaceConfig(candidate);
             runtime.Save();
             return success(runtime.Config);
         }
         finally { runtime.Gate.Release(); }
-    }
-
-    /// <summary>Copies the validated candidate into the live project object (the engine holds that object).</summary>
-    private void Commit(GatewayConfig candidate)
-    {
-        var live = runtime.Config;
-        live.Server.ApplicationName = candidate.Server.ApplicationName;
-        live.Server.Port = candidate.Server.Port;
-        live.Server.AllowNoSecurity = candidate.Server.AllowNoSecurity;
-        live.Server.AutoAcceptCertificates = candidate.Server.AutoAcceptCertificates;
-        live.Server.NamespaceUri = candidate.Server.NamespaceUri;
-        live.Server.AllowAnonymous = candidate.Server.AllowAnonymous;
-
-        live.Server.Users.Clear();
-        foreach (var u in candidate.Server.Users) live.Server.Users.Add(u);
-
-        live.Channels.Clear();
-        foreach (var c in candidate.Channels) live.Channels.Add(c);
     }
 
     public static IResult Json(int status, object body) => Results.Json(body, statusCode: status);
@@ -66,9 +50,26 @@ public sealed class ConfigEditor(GatewayRuntime runtime)
     public static ChannelConfig Mask(ChannelConfig channel)
     {
         var copy = ConfigStore.Clone(channel);
-        var info = DriverCatalog.Get(copy.DriverType);
+        var info = DriverCatalog.For(copy);
         MaskSettings(copy.Settings, info.ChannelSettings);
         foreach (var d in copy.Devices) MaskSettings(d.Settings, info.DeviceSettings);
+        return copy;
+    }
+
+    public static NorthboundConfig Mask(NorthboundConfig output)
+    {
+        var copy = ConfigStore.Clone(output);
+        MaskSettings(copy.Settings, NorthboundCatalog.For(copy.Kind));
+        return copy;
+    }
+
+    public static void RestoreSecrets(NorthboundConfig incoming, NorthboundConfig? existing) =>
+        Restore(incoming.Settings, existing?.Settings, NorthboundCatalog.For(incoming.Kind));
+
+    public static RedundancySettings Mask(RedundancySettings r)
+    {
+        var copy = ConfigStore.Clone(r);
+        if (copy.PeerApiKey.Length > 0) copy.PeerApiKey = SecretMask;
         return copy;
     }
 
@@ -81,7 +82,7 @@ public sealed class ConfigEditor(GatewayRuntime runtime)
     /// <summary>Replaces any "********" in <paramref name="incoming"/> with the value stored in <paramref name="existing"/>.</summary>
     public static void RestoreSecrets(ChannelConfig incoming, ChannelConfig? existing)
     {
-        var info = DriverCatalog.Get(incoming.DriverType);
+        var info = DriverCatalog.For(incoming);
         Restore(incoming.Settings, existing?.Settings, info.ChannelSettings);
         foreach (var d in incoming.Devices)
             Restore(d.Settings, existing is null ? null : FindDevice(existing, d.Name)?.Settings, info.DeviceSettings);

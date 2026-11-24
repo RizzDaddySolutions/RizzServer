@@ -94,13 +94,24 @@ public sealed class RizzNodeManager : CustomNodeManager2
             Timestamp = DateTime.UtcNow,
         };
 
+        if (!string.IsNullOrWhiteSpace(tag.Config.Description))
+            variable.Description = new LocalizedText("en", tag.Config.Description);
+
         if (writable)
         {
-            variable.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref object value) =>
+            variable.OnSimpleWriteValue = (ISystemContext context, NodeState _, ref object value) =>
             {
+                // Anonymous sessions and Viewer accounts read; Operator and Admin may write.
+                var who = WhoIs(context);
+                if (who.Role < UserRole.Operator)
+                {
+                    _engine.Audit?.Invoke("write-denied", who.Name, tag.NodePath, $"{value}");
+                    return StatusCodes.BadUserAccessDenied;
+                }
                 try
                 {
                     _engine.WriteAsync(tag, value).Wait(TimeSpan.FromSeconds(5));
+                    _engine.Audit?.Invoke("write", who.Name, tag.NodePath, $"{value}");
                     return ServiceResult.Good;
                 }
                 catch (Exception)
@@ -112,7 +123,43 @@ public sealed class RizzNodeManager : CustomNodeManager2
 
         parent.AddChild(variable);
         AddPredefinedNode(SystemContext, variable);
+
+        if (tag.Config.Units is { Length: > 0 } units)
+            AddProperty(variable, tag, BrowseNames.EngineeringUnits, DataTypeIds.EUInformation, new EUInformation(units, units, ""));
+        if (tag.Config.EuMin is not null && tag.Config.EuMax is not null)
+            AddProperty(variable, tag, BrowseNames.EURange, DataTypeIds.Range, new Opc.Ua.Range(tag.Config.EuMax.Value, tag.Config.EuMin.Value));
         return variable;
+    }
+
+    private void AddProperty<T>(BaseDataVariableState owner, TagRuntime tag, string name, NodeId dataType, T value)
+    {
+        var property = new PropertyState<T>(owner)
+        {
+            SymbolicName = name,
+            ReferenceTypeId = ReferenceTypeIds.HasProperty,
+            TypeDefinitionId = VariableTypeIds.PropertyType,
+            NodeId = new NodeId($"{tag.NodePath}.{name}", NamespaceIndex),
+            BrowseName = new QualifiedName(name, 0),
+            DisplayName = new LocalizedText("en", name),
+            DataType = dataType,
+            ValueRank = ValueRanks.Scalar,
+            AccessLevel = AccessLevels.CurrentRead,
+            UserAccessLevel = AccessLevels.CurrentRead,
+            Value = value,
+            StatusCode = StatusCodes.Good,
+            Timestamp = DateTime.UtcNow,
+        };
+        owner.AddChild(property);
+        AddPredefinedNode(SystemContext, property);
+    }
+
+    /// <summary>The account behind a session: a named user, or "anonymous" (read-only).</summary>
+    private (string Name, UserRole Role) WhoIs(ISystemContext context)
+    {
+        var identity = (context as ServerSystemContext)?.OperationContext?.UserIdentity;
+        if (identity?.TokenType != UserTokenType.UserName) return ("anonymous", UserRole.Viewer);
+        var user = _engine.Config.Server.Users.FirstOrDefault(u => string.Equals(u.Username, identity.DisplayName, StringComparison.Ordinal));
+        return (identity.DisplayName ?? "?", user?.Role ?? UserRole.Viewer);
     }
 
     private void OnTagUpdated(TagRuntime tag)
